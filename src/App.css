@@ -1,0 +1,14 @@
+.app {
+  display: flex;
+  height: 100vh;
+  background: linear-gradient(135deg, #0c0c0c, #1e1e1e);
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  background: rgba(30, 30, 30, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}

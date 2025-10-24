@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 240px;
+  }
+
+  body {
+    @apply bg-neutral-950 text-gray-100;
+    overflow: hidden;
+  }
+}
+
+@layer components {
+  .sidebar-link {
+    @apply flex items-center px-4 py-2 text-sm text-gray-400 hover:text-blue-400 hover:bg-neutral-800 rounded-md transition-colors;
+  }
+
+  .sidebar-link.active {
+    @apply bg-blue-600 text-white;
+  }
+
+  .input-field {
+    @apply w-full bg-neutral-800 border border-neutral-700 rounded px-4 py-2 text-sm 
+    focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-100;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-md text-sm font-medium transition-colors
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900;
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+  }
+
+  .btn-secondary {
+    @apply bg-neutral-700 text-gray-200 hover:bg-neutral-600 focus:ring-neutral-500;
+  }
+
+  .card {
+    @apply bg-neutral-800 border border-neutral-700 rounded-lg p-4 hover:border-neutral-600 transition-colors;
+  }
+
+  .tab-button {
+    @apply px-4 py-2 text-sm font-medium rounded-t focus:outline-none;
+  }
+
+  .tab-button.active {
+    @apply bg-neutral-800 text-blue-400 border-t border-x border-neutral-700;
+  }
+
+  .tab-button:not(.active) {
+    @apply text-gray-400 hover:text-blue-300;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-neutral-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-neutral-700 rounded-full hover:bg-neutral-600;
+}

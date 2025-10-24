@@ -1,0 +1,8 @@
+{
+  "python.pythonPath": "C:\\Users\\mahmu\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "github.copilot.advanced": {
+    
+  }
+}

@@ -1,0 +1,35 @@
+.settings-page {
+  background: transparent;
+}
+
+.tabs {
+  background: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.tab-button {
+  padding: 0.5rem 1rem;
+  margin-right: 0.25rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.tab-button.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.tab-button:not(.active):hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tab-content {
+  background: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 1rem;
+}

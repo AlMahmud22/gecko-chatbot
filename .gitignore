@@ -1,0 +1,23 @@
+# System files
+.DS_Store
+.env
+extract_files.txt
+extract-all.ps1
+
+# Node + NPM
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Model binaries
+*.gguf
+*.bin
+*.ckpt
+*.pth
+*.safetensors
+
+# Git backup folders
+.git-corrupt-backup/
+
+# Build output (ignored in Git, rebuildable)
+dist/

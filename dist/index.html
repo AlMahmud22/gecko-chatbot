@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+  <title>Equators Chatbot</title>
+  <style>
+    /* Ensure dark theme from the start */
+    body {
+      background-color: #0c0c0c;
+      color: #cccccc;
+    }
+    /* Hide body until React loads */
+    .js-loading {
+      opacity: 0;
+      transition: opacity .4s ease-in;
+    }
+    /* Show body once loaded */
+    .js-loading-complete {
+      opacity: 1;
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-Bc3xk5S_.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/vendor-BmsND6nG.js">
+  <link rel="modulepreload" crossorigin href="./assets/ui-ypWNQtmN.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-LfzP5Bxl.css">
+</head>
+<body class="js-loading">
+  <div id="root"></div>
+  <script>
+    // Add loaded class once React mounts
+    document.body.classList.add('js-loading-complete');
+  </script>
+</body>
+</html>
