@@ -1,39 +1,11 @@
 import { create } from 'zustand';
 
 const useStore = create((set, get) => ({
-  // Authentication state
-  authToken: null,
-  huggingFaceToken: null,
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  
-  setAuthToken: (token) => set({ authToken: token, isAuthenticated: !!token }),
-  setHuggingFaceToken: (token) => set({ huggingFaceToken: token }),
-  setUser: (user) => set({ user }),
-  setLoading: (loading) => set({ isLoading: loading }),
-  
-  login: async (authData) => {
-    set({ 
-      authToken: authData.token, 
-      huggingFaceToken: authData.hfToken,
-      user: authData.user,
-      isAuthenticated: true 
-    });
-  },
-  
-  logout: () => set({ 
-    authToken: null, 
-    huggingFaceToken: null,
-    user: null, 
-    isAuthenticated: false 
-  }),
-
   // Models state  
   activeModel: null,
   setActiveModel: (modelId) => set({ activeModel: modelId }),
   
-  // Hugging Face models state
+  // Local models state
   models: [],
   installedModels: [],
   favoriteModels: [],

@@ -8,8 +8,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 /**
- * HuggingFace-style filter panel component
- * Provides advanced filtering options matching HF's UI design
+ * Filter panel component for local model filtering
+ * Provides advanced filtering options for installed models
  */
 function FiltersPanel({ 
   isOpen, 

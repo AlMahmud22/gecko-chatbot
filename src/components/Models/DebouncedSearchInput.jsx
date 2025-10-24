@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 /**
- * Enhanced Search Input component with HuggingFace-like UX:
+ * Search Input component with local model search:
  * - No auto-debounce on typing
  * - Search triggers only on ENTER key or search button click
  * - Visual feedback with search icon and loading states

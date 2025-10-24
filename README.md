@@ -27,8 +27,8 @@ Features
 
 Fully GUI-based with no CLI or config files.
 Local GGUF model support via llama.cpp.
-Embedded MongoDB for chat history and presets.
-Model downloader with Hugging Face integration.
+Embedded storage for chat history and presets.
+Local model installation via file picker.
 System profiling for model recommendations.
 
 Platforms

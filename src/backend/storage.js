@@ -132,7 +132,6 @@ async function saveInstalledModel(modelData) {
       downloadedAt: modelData.downloadedAt || new Date(),
       size: modelData.size || 0,
       quant: modelData.quant || 'Unknown',
-      originalHuggingFaceId: modelData.originalHuggingFaceId || null,
       parameters: modelData.parameters || 'Unknown',
       description: modelData.description || `Local model: ${modelData.name || modelData._id.replace('.gguf', '')}`,
       tags: modelData.tags || ['local'],

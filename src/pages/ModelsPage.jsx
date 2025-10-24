@@ -16,7 +16,6 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon 
 } from '@heroicons/react/24/outline';
-import { fetchModels, processModels } from '../utils/huggingface-improved';
 import './ModelsPage.css';
 
 export default function ModelsPage() {
@@ -280,7 +279,7 @@ export default function ModelsPage() {
     try {
       // Check if model is installed
       const isInstalled = installedModels.some(m => 
-        m.id === model.id || m.originalHuggingFaceId === model.id
+        m.id === model.id
       );
       
       // Set selected model with available info

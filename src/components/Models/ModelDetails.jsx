@@ -77,19 +77,6 @@ function ModelDetails({ model, systemInfo, isActive, onDownload, onActivate, onD
           </button>
           
           <div className="flex items-center space-x-2">
-            {/* HuggingFace link */}
-            {model.id?.includes('/') && (
-              <a
-                href={`https://huggingface.co/${model.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-full text-gray-400 hover:text-blue-400 transition-colors"
-                title="View on Hugging Face"
-              >
-                <LinkIcon className="w-5 h-5" />
-              </a>
-            )}
-            
             {onFavorite && (
               <button 
                 className={`p-2 rounded-full transition-colors ${isFavorite ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}

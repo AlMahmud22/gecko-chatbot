@@ -5,14 +5,15 @@ import { useElectronServices } from './use-electron-api.js';
 
 export const useModels = () => {
   const store = useModelsStore();
-  const { models: modelsApi, huggingface } = useElectronServices();
+  const { models: modelsApi } = useElectronServices();
   
-  // Load installed models
+  // Load local models only (LOCAL ONLY - no HF integration)
   const loadInstalledModels = useCallback(async () => {
     try {
       store.setLoading(true);
       const installedModels = await modelsApi.getLocal();
       store.setInstalledModels(installedModels);
+      store.setModels(installedModels); // Show local models in the main list
       store.setError(null);
     } catch (error) {
       console.error('Failed to load installed models:', error);
@@ -21,27 +22,6 @@ export const useModels = () => {
       store.setLoading(false);
     }
   }, [modelsApi, store]);
-  
-  // Load HuggingFace models
-  const loadHuggingFaceModels = useCallback(async (options = {}) => {
-    try {
-      store.setLoading(true);
-      const result = await huggingface.fetchModels({
-        ...store.filters,
-        search: store.searchQuery,
-        ...options
-      });
-      store.setModels(result.models || []);
-      store.setError(null);
-      return result;
-    } catch (error) {
-      console.error('Failed to load HuggingFace models:', error);
-      store.setError('Failed to load models from HuggingFace');
-      return { models: [], nextUrl: null };
-    } finally {
-      store.setLoading(false);
-    }
-  }, [huggingface, store]);
   
   // Download model
   const downloadModel = useCallback(async (modelId, fileName) => {
@@ -115,7 +95,6 @@ export const useModels = () => {
     
     // Actions
     loadInstalledModels,
-    loadHuggingFaceModels,
     downloadModel,
     deleteModel,
     toggleFavorite,
