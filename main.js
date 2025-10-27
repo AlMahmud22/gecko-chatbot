@@ -1,102 +1,177 @@
-const { app, BrowserWindow, ipcMain, nativeTheme, shell } = require('electron');
-const path = require('path');
-const isDev = process.env.NODE_ENV === 'development';
-const Store = require('electron-store');
-const os = require('os');
+// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\main.js
 
-const {
+import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron';
+import path from 'path';
+import os from 'os';
+import dotenv from 'dotenv';
+
+// Backend imports - Models
+import {
   getAvailableModels,
   fetchModelDetails,
-  downloadModel,
   deleteModel,
   installLocalModel,
   getLocalModels,
-  getModelDir,
-} = require('./src/backend/models.js');
+  getModelsDir,
+  activateModel,
+  deactivateModel,
+  getModelsDirectory,
+  changeModelsDirectory,
+  resetModelsDirectory,
+} from './src/backend/models/models.js';
 
-const { runInference } = require('./src/backend/inference.js');
-const { getInferenceConfig } = require('./src/backend/config.js');
+// Backend imports - Inference
+import { 
+  runInference, 
+  loadModel, 
+  unloadModel, 
+  getLoadedModels, 
+  getEngineStatus, 
+  clearAllModels,
+  stopGeneration
+} from './src/backend/inference/inference.js';
 
-const { getSystemInfo } = require('./src/backend/system-improved.js');
+import { getInferenceConfig } from './src/backend/config.js';
+import { getSystemInfo } from './src/backend/system/system-improved.js';
 
-const store = new Store();
+// Backend imports - Storage (modular)
+import {
+  getProfiles,
+  getProfile,
+  createProfile,
+  updateProfile,
+  deleteProfile,
+  importProfile,
+  exportProfile,
+  getChats,
+  getChat,
+  createChat,
+  updateChat,
+  appendMessage,
+  deleteMessage,
+  deleteChat,
+  clearChatMessages,
+  searchChats,
+  getSettings,
+  getSettingsSection,
+  updateSettings,
+  updateSettingsSection,
+  resetSettings,
+  resetSettingsSection,
+  exportSettings,
+  importSettings,
+} from './src/backend/storage/storage-router.js';
 
-//
+dotenv.config();
+
+const isDev = process.env.NODE_ENV === 'development';
+
+// Verify model directory functions are imported
+console.log('Model directory functions imported:', {
+  getModelsDirectory: typeof getModelsDirectory,
+  changeModelsDirectory: typeof changeModelsDirectory,
+  resetModelsDirectory: typeof resetModelsDirectory,
+});
+
+// Main window reference
+let mainWindow = null;
+
 // IPC Handlers – System Information
-//
 ipcMain.handle('get-system-info', async () => {
   try {
     const systemInfo = await getSystemInfo(isDev);
-    
+
     if (!isDev && systemInfo.isMock) {
       console.warn('Warning: System is returning mock data in production.');
-      return { 
+      return {
         error: 'Cannot extract system info: Mock data detected in production',
         platform: process.platform,
-        arch: process.arch
+        arch: process.arch,
       };
     }
-    
+
     return systemInfo;
   } catch (err) {
     console.error('System info fetch failed:', err);
-    return { 
+    return {
       error: `Failed to fetch system info: ${err.message || 'Unknown error'}`,
       platform: process.platform,
       arch: process.arch,
       cpu: { name: 'Cannot extract system info', cores: 'N/A', threads: 'N/A' },
-      memory: { 
-        formatted: { total: 'Cannot extract system info', free: 'Cannot extract system info' } 
-      },
-      gpu: { 
-        name: 'Cannot extract system info',
-        hasCuda: false,
-        formatted: { vram: 'N/A' }
-      }
+      memory: { formatted: { total: 'Cannot extract system info', free: 'Cannot extract system info' } },
+      gpu: { name: 'Cannot extract system info', hasCuda: false, formatted: { vram: 'N/A' } },
     };
   }
 });
 
-ipcMain.handle('get-paths', () => {
-  return {
-    appData: app.getPath('appData'),
-    userData: app.getPath('userData'),
-    temp: app.getPath('temp'),
-    downloads: app.getPath('downloads'),
-    documents: app.getPath('documents'),
-  };
-});
+ipcMain.handle('get-paths', () => ({
+  appData: app.getPath('appData'),
+  userData: app.getPath('userData'),
+  temp: app.getPath('temp'),
+  downloads: app.getPath('downloads'),
+  documents: app.getPath('documents'),
+}));
 
-//
 // IPC Handlers – Model Management
-//
 ipcMain.handle('get-available-models', async (_, options) => {
-  return await getAvailableModels(options);
+  try {
+    return await getAvailableModels(options);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('fetch-model-details', async (_, modelId) => {
-  return await fetchModelDetails(modelId);
-});
-
-ipcMain.handle('download-model', async (_, modelId, fileName) => {
-  return await downloadModel(modelId, fileName);
+  try {
+    return await fetchModelDetails(modelId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('delete-model', async (_, modelId) => {
-  return await deleteModel(modelId);
+  try {
+    return await deleteModel(modelId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
-ipcMain.handle('install-local-model', async () => {
-  return await installLocalModel();
+ipcMain.handle('activate-model', async (_, modelId) => {
+  try {
+    return await activateModel(modelId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('deactivate-model', async (_, modelId) => {
+  try {
+    return await deactivateModel(modelId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('get-local-models', async () => {
-  return await getLocalModels();
+  try {
+    return await getLocalModels();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('install-local-model', async () => {
+  try {
+    return await installLocalModel();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('open-models-folder', async () => {
   try {
-    const modelDir = getModelDir();
+    const modelDir = getModelsDir();
     await shell.openPath(modelDir);
     return { success: true };
   } catch (err) {
@@ -105,86 +180,384 @@ ipcMain.handle('open-models-folder', async () => {
   }
 });
 
-//
-// IPC Handlers – Inference
-//
-ipcMain.handle('run-inference', async (_, { modelId, message }) => {
+ipcMain.handle('get-models-directory', async () => {
   try {
-    const config = await getInferenceConfig();
-    return await runInference(modelId, message, config);
+    return await getModelsDirectory();
   } catch (err) {
-    return { error: err.message };
+    return { success: false, error: err.message };
   }
 });
 
-//
-// IPC Handlers – Settings (Local Storage)
-//
-ipcMain.handle('get-settings', () => {
-  return store.get('settings') || {};
+ipcMain.handle('change-models-directory', async () => {
+  try {
+    console.log('change-models-directory IPC handler called');
+    const result = await changeModelsDirectory();
+    console.log('changeModelsDirectory result:', result);
+    return result;
+  } catch (err) {
+    console.error('Error in change-models-directory handler:', err);
+    return { success: false, error: err.message };
+  }
 });
 
-ipcMain.handle('save-settings', async (_, settings) => {
-  store.set('settings', settings);
-  return { success: true };
+ipcMain.handle('reset-models-directory', async () => {
+  try {
+    return await resetModelsDirectory();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
-ipcMain.handle('get-chat-settings', () => {
-  return store.get('chatSettings') || {
-    historyEnabled: true,
-    maxHistoryLength: 100,
-    temperature: 0.7,
-    maxTokens: 1000,
-  };
+// IPC Handlers – Inference
+ipcMain.handle('load-model', async (_, modelId, config) => {
+  try {
+    return await loadModel(modelId, config);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
-ipcMain.handle('save-chat-settings', async (_, settings) => {
-  store.set('chatSettings', settings);
-  return { success: true };
+ipcMain.handle('unload-model', async (_, modelId) => {
+  try {
+    return await unloadModel(modelId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
-ipcMain.handle('get-performance-settings', () => {
-  return store.get('performanceSettings') || {
-    threads: Math.max(1, os.cpus().length - 1),
-    batchSize: 512,
-    contextSize: 2048,
-  };
+ipcMain.handle('get-loaded-models', async () => {
+  try {
+    return getLoadedModels();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
-ipcMain.handle('save-performance-settings', async (_, settings) => {
-  store.set('performanceSettings', settings);
-  return { success: true };
+ipcMain.handle('get-engine-status', async () => {
+  try {
+    return await getEngineStatus();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
-//
-// IPC Handlers – Chat History
-//
-ipcMain.handle('get-chat-history', () => {
-  return store.get('chatHistory') || [];
+ipcMain.handle('clear-all-models', async () => {
+  try {
+    return await clearAllModels();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('run-inference', async (_, { modelId, message, config }) => {
+  try {
+    const inferenceConfig = config || await getInferenceConfig();
+    return await runInference(modelId, message, inferenceConfig);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('stop-generation', async (_, { generationId }) => {
+  try {
+    return stopGeneration(generationId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Handlers – Storage: Profiles
+ipcMain.handle('storage:get-profiles', async () => {
+  try {
+    return await getProfiles();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:get-profile', async (_, profileId) => {
+  try {
+    return await getProfile(profileId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:create-profile', async (_, profileData) => {
+  try {
+    return await createProfile(profileData);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:update-profile', async (_, profileId, updates) => {
+  try {
+    return await updateProfile(profileId, updates);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:delete-profile', async (_, profileId) => {
+  try {
+    return await deleteProfile(profileId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:import-profile', async (_, filePath) => {
+  try {
+    return await importProfile(filePath);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:export-profile', async (_, profileId, exportPath) => {
+  try {
+    return await exportProfile(profileId, exportPath);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Handlers – Storage: Chats
+ipcMain.handle('storage:get-chats', async (_, profileId) => {
+  try {
+    return await getChats(profileId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:get-chat', async (_, chatId) => {
+  try {
+    return await getChat(chatId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:create-chat', async (_, chatData) => {
+  try {
+    return await createChat(chatData);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:update-chat', async (_, chatId, updates) => {
+  try {
+    return await updateChat(chatId, updates);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:append-message', async (_, chatId, message) => {
+  try {
+    return await appendMessage(chatId, message);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:delete-message', async (_, chatId, messageId) => {
+  try {
+    return await deleteMessage(chatId, messageId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:delete-chat', async (_, chatId) => {
+  try {
+    return await deleteChat(chatId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:clear-chat-messages', async (_, chatId) => {
+  try {
+    return await clearChatMessages(chatId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:search-chats', async (_, query, profileId) => {
+  try {
+    return await searchChats(query, profileId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Handlers – Storage: Settings
+ipcMain.handle('storage:get-settings', async () => {
+  try {
+    return await getSettings();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:get-settings-section', async (_, section) => {
+  try {
+    return await getSettingsSection(section);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:update-settings', async (_, settings) => {
+  try {
+    return await updateSettings(settings);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:update-settings-section', async (_, section, values) => {
+  try {
+    return await updateSettingsSection(section, values);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:reset-settings', async () => {
+  try {
+    return await resetSettings();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:reset-settings-section', async (_, section) => {
+  try {
+    return await resetSettingsSection(section);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:export-settings', async (_, exportPath) => {
+  try {
+    return await exportSettings(exportPath);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:import-settings', async (_, importPath) => {
+  try {
+    return await importSettings(importPath);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// IPC Handlers – Legacy Chat History (for backward compatibility)
+ipcMain.handle('get-chat-history', async () => {
+  try {
+    const result = await getChats();
+    return result.chats || [];
+  } catch (err) {
+    return [];
+  }
 });
 
 ipcMain.handle('save-chat', async (_, chat) => {
-  const history = store.get('chatHistory') || [];
-  const newChat = {
-    id: Date.now().toString(),
-    ...chat,
-    createdAt: new Date().toISOString(),
-  };
-  history.push(newChat);
-  store.set('chatHistory', history);
-  return { success: true, chat: newChat };
+  try {
+    return await createChat(chat);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('delete-chat', async (_, chatId) => {
-  const history = store.get('chatHistory') || [];
-  const filtered = history.filter(chat => chat.id !== chatId);
-  store.set('chatHistory', filtered);
-  return { success: true };
+  try {
+    return await deleteChat(chatId);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
-//
+// IPC Handlers – Legacy Settings (for backward compatibility)
+ipcMain.handle('get-settings', async () => {
+  try {
+    const result = await getSettings();
+    return result.settings?.general || {};
+  } catch (err) {
+    return {};
+  }
+});
+
+ipcMain.handle('save-settings', async (_, settings) => {
+  try {
+    return await updateSettings({ general: settings });
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-chat-settings', async () => {
+  try {
+    const result = await getSettingsSection('chat');
+    return result.settings || {
+      historyEnabled: true,
+      maxHistoryLength: 100,
+      temperature: 0.7,
+      maxTokens: 1000,
+    };
+  } catch (err) {
+    return {
+      historyEnabled: true,
+      maxHistoryLength: 100,
+      temperature: 0.7,
+      maxTokens: 1000,
+    };
+  }
+});
+
+ipcMain.handle('save-chat-settings', async (_, settings) => {
+  try {
+    return await updateSettingsSection('chat', settings);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-performance-settings', async () => {
+  try {
+    const result = await getSettingsSection('performance');
+    return result.settings || {
+      threads: Math.max(1, os.cpus().length - 1),
+      batchSize: 512,
+      contextSize: 2048,
+    };
+  } catch (err) {
+    return {
+      threads: Math.max(1, os.cpus().length - 1),
+      batchSize: 512,
+      contextSize: 2048,
+    };
+  }
+});
+
+ipcMain.handle('save-performance-settings', async (_, settings) => {
+  try {
+    return await updateSettingsSection('performance', settings);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // IPC – Navigation
-//
 ipcMain.on('navigate-to-chat', (event, modelId) => {
   const win = BrowserWindow.getFocusedWindow();
   if (win) {
@@ -192,39 +565,61 @@ ipcMain.on('navigate-to-chat', (event, modelId) => {
   }
 });
 
-//
 // Window Management
-//
 async function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(app.getAppPath(), 'preload.js'),
       contextIsolation: true,
-      enableRemoteModule: false,
       nodeIntegration: false,
     },
   });
 
+  // Open DevTools in development
   if (isDev) {
-    await win.loadURL(process.env.DEV_URL || 'http://localhost:5173');
-  } else {
-    await win.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    mainWindow.webContents.openDevTools();
   }
 
+  if (isDev) {
+    const devServerURL = process.env.DEV_URL || 'http://localhost:5173';
+
+    // Wait for Vite dev server to start before loading
+    const tryLoad = async (retries = 20) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          await fetch(devServerURL);
+          await mainWindow.loadURL(devServerURL);
+          console.log('  Loaded Vite dev server:', devServerURL);
+          return;
+        } catch (err) {
+          console.log('Waiting for Vite to start...');
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+      console.error('  Could not reach Vite dev server after waiting');
+    };
+
+    await tryLoad();
+  } else {
+    await mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'));
+  }
+
+  // Handle theme updates
   nativeTheme.on('updated', () => {
-    win.webContents.send('theme-updated', {
+    mainWindow.webContents.send('theme-updated', {
       shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
     });
   });
 
-  return win;
+  return mainWindow;
 }
 
+// App lifecycle
 app.whenReady().then(async () => {
   await createWindow();
-
+  
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();

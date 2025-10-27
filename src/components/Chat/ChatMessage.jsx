@@ -1,7 +1,5 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 function ChatMessage({ role, content }) {
   return (
@@ -33,15 +31,11 @@ function ChatMessage({ role, content }) {
                 >
                   Copy
                 </button>
-                <SyntaxHighlighter
-                  style={oneDark}
-                  language={match[1]}
-                  PreTag="div"
-                  className="!bg-[#0c0c0c] !p-4 rounded-lg border border-[#2a2a2a]"
-                  {...props}
-                >
-                  {String(children).replace(/\n$/, '')}
-                </SyntaxHighlighter>
+                <pre className="!bg-[#0c0c0c] !p-4 rounded-lg border border-[#2a2a2a] overflow-x-auto">
+                  <code className="text-gray-200 text-sm">
+                    {String(children).replace(/\n$/, '')}
+                  </code>
+                </pre>
               </div>
             ) : (
               <code className={className} {...props}>

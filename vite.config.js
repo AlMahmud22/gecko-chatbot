@@ -12,16 +12,26 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+  },
   css: {
     postcss: './postcss.config.js',
   },
   server: {
     port: 5173,
     strictPort: true,
-    host: true
+    host: true,
+    middlewareMode: false,
   },
   optimizeDeps: {
-    exclude: ['electron'],
+    exclude: ['electron', 'react-syntax-highlighter', 'refractor'],
+    include: ['react', 'react-dom', 'react-router-dom', 'framer-motion', '@heroicons/react', 'style-to-js'],
+    esbuildOptions: {
+      loader: {
+        '.js': 'jsx',
+      },
+    },
   },
   build: {
     outDir: 'dist',
@@ -35,13 +45,12 @@ export default defineConfig({
         'child_process',
         'systeminformation',
         'dotenv',
-        'axios',
         'node-cache',
+        /^refractor\//,
       ],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['react-markdown', 'react-syntax-highlighter'],
         },
       },
     },

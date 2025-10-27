@@ -1,12 +1,18 @@
 /**
  * System information utilities with enhanced GPU detection
  */
+import { createRequire } from 'module';
+import { exec } from 'child_process';
+import os from 'os';
+import { logger } from '../logger.js';
+import path from 'path';
+import fs from 'fs/promises';
+import { fileURLToPath } from 'url';
+
+const require = createRequire(import.meta.url);
 const si = require('systeminformation');
-const { exec } = require('child_process');
-const os = require('os');
-const logger = require('./logger');
-const path = require('path');
-const fs = require('fs').promises;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Get comprehensive system information including GPU details with CUDA detection
@@ -176,7 +182,7 @@ async function getPerformanceRecommendations() {
   }
 }
 
-module.exports = {
+export {
   getSystemInfo,
   getPaths,
   getPerformanceRecommendations

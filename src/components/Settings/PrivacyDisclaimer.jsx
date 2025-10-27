@@ -11,15 +11,9 @@ function PrivacyDisclaimer() {
         <div>
           <h3 className="text-lg font-medium text-yellow-500 mb-2">Privacy & Data Storage</h3>
           <p className="text-gray-300 mb-2">
-            This application stores no cloud data, even after login. Login is required only to download models.
+            This application stores no cloud data.
           </p>
-          <p className="text-gray-300 mb-2">
-            Your chats, history, and configuration are stored entirely on your device.
-          </p>
-          <p className="text-gray-300">
-            Before uninstalling, please export your data if you wish to migrate it to another system.
-          </p>
-        </div>
+          </div>
       </div>
     </div>
   );

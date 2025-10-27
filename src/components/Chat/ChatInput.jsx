@@ -1,14 +1,21 @@
 import { useState } from 'react'
 import Button from '../Common/Button'
+import { StopCircleIcon } from '@heroicons/react/24/outline'
 
-function ChatInput({ onSend }) {
+function ChatInput({ onSend, onStop, isGenerating }) {
   const [input, setInput] = useState('')
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (input.trim()) {
+    if (input.trim() && !isGenerating) {
       onSend(input)
       setInput('')
+    }
+  }
+
+  const handleStop = () => {
+    if (onStop) {
+      onStop()
     }
   }
 
@@ -29,6 +36,7 @@ function ChatInput({ onSend }) {
               placeholder="Message Equators Chatbot..."
               className="w-full py-3 px-4 bg-[#2a2a2a] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               rows={1}
+              disabled={isGenerating}
               style={{
                 minHeight: '44px',
                 maxHeight: '200px',
@@ -39,12 +47,22 @@ function ChatInput({ onSend }) {
               <span>to send</span>
             </div>
           </div>
-          <Button 
-            onClick={handleSubmit}
-            className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-colors"
-          >
-            Send
-          </Button>
+          {isGenerating ? (
+            <Button 
+              onClick={handleStop}
+              className="h-11 px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center justify-center transition-colors gap-2"
+            >
+              <StopCircleIcon className="w-5 h-5" />
+              Stop
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmit}
+              className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-colors"
+            >
+              Send
+            </Button>
+          )}
         </div>
       </form>
     </div>

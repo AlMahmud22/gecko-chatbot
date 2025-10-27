@@ -14,8 +14,10 @@ function HistoryPage() {
 
     const loadHistory = async () => {
       try {
-        const chatHistory = await window.electronAPI.getChatHistory();
-        setHistory(chatHistory);
+        ////// Use new storage API to get all chats
+        const result = await window.electronAPI.storage.chats.getAll('default');
+        const chatHistory = result?.chats || result || [];
+        setHistory(Array.isArray(chatHistory) ? chatHistory : []);
       } catch (err) {
         console.error('Failed to load history:', err);
         setError('Failed to load chat history.');
@@ -31,6 +33,17 @@ function HistoryPage() {
       navigate(`/chat/${chat.modelId}`, { state: { chatId } });
     }
   };
+  
+  ////// Handle chat deletion and refresh list
+  const handleDelete = async (chatId) => {
+    try {
+      await window.electronAPI.storage.chats.delete(chatId);
+      setHistory(prev => prev.filter(chat => chat.id !== chatId));
+    } catch (err) {
+      console.error('Failed to delete chat:', err);
+      setError('Failed to delete chat.');
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-[#1a1a1a]">
@@ -41,7 +54,7 @@ function HistoryPage() {
         <h1 className="text-lg font-semibold text-white">Chat History</h1>
       </div>
       <div className="flex-1 overflow-auto p-6">
-        <HistoryList history={history} onSelect={handleSelect} />
+        <HistoryList history={history} onSelect={handleSelect} onDelete={handleDelete} />
       </div>
     </div>
   );

@@ -1,9 +1,15 @@
-import { CheckCircleIcon, TrashIcon, PlayCircleIcon, HeartIcon, ArrowDownTrayIcon, StarIcon } from '@heroicons/react/24/outline';
-import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
+import { 
+  CheckCircleIcon, 
+  TrashIcon, 
+  PlayCircleIcon,
+  ArrowDownTrayIcon,
+  StarIcon,
+  CpuChipIcon
+} from '@heroicons/react/24/outline';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 
-function ModelCard({ model, systemInfo, isActive, onDownload, onActivate, onDelete, onClick, onFavorite, isFavorite }) {
+function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDelete, onClick }) {
   const formatSize = (bytes) => {
     if (!bytes || isNaN(Number(bytes))) return 'Unknown';
     const size = Number(bytes);
@@ -24,15 +30,38 @@ function ModelCard({ model, systemInfo, isActive, onDownload, onActivate, onDele
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
+    if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 30) return `${diffDays} days ago`;
     if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
     return `${Math.floor(diffDays / 365)} years ago`;
   };
   
-  // Extract username from repo_id (username/repo-name)
-  const author = model.id?.split('/')[0] || 'Unknown';
-  const modelName = model.name || model.id?.split('/').pop() || model.modelId || 'Unnamed Model';
+  // Extract info from model filename or metadata
+  const extractModelInfo = () => {
+    const fileName = model.name || model.id || 'unknown';
+    const lowerName = fileName.toLowerCase();
+    
+    // Extract quantization (Q4_K_M, Q5_K_S, etc.)
+    const quantMatch = fileName.match(/[Qq](\d+)[_-]?([KkMm])?[_-]?([SsMmLl])?/);
+    const quant = quantMatch ? fileName.substring(quantMatch.index, quantMatch.index + quantMatch[0].length) : null;
+    
+    // Extract parameter count (7B, 13B, 70B, etc.)
+    const paramMatch = fileName.match(/(\d+\.?\d*)[Bb]/);
+    const parameters = paramMatch ? paramMatch[0] : null;
+    
+    // Extract model family/name (first part before version/quant info)
+    const nameParts = fileName.replace('.gguf', '').split(/[-_]/);
+    const modelFamily = nameParts[0] || 'Unknown Model';
+    
+    return { quant, parameters, modelFamily };
+  };
+  
+  const { quant, parameters, modelFamily } = extractModelInfo();
+  
+  // Extract author/username from model name or use first letter
+  const author = model.author || modelFamily.split('-')[0] || 'Unknown';
+  const displayName = model.displayName || model.name || model.id || 'Unnamed Model';
 
   return (
     <motion.div
@@ -56,52 +85,66 @@ function ModelCard({ model, systemInfo, isActive, onDownload, onActivate, onDele
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h3 className="text-white font-semibold text-base truncate leading-tight">
-              {modelName}
+            <h3 className="text-white font-semibold text-base truncate leading-tight" title={displayName}>
+              {displayName}
             </h3>
             <p className="text-sm text-gray-400 truncate">{author}</p>
           </div>
         </div>
         
-        {/* Action buttons */}
+        {/* Active/Inactive status indicator */}
         <div className="flex items-center space-x-2 flex-shrink-0">
-          {/* Favorite button */}
-          {onFavorite && model?.id && (
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                onFavorite(model.id);
-              }}
-              className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-full hover:bg-red-500 hover:bg-opacity-10"
-              title={isFavorite ? "Remove from liked models" : "Add to liked models"}
-            >
-              {isFavorite ? (
-                <HeartSolidIcon className="w-4 h-4 text-red-500" />
-              ) : (
-                <HeartIcon className="w-4 h-4" />
-              )}
-            </button>
+          {model.isExternal && (
+            <span className="bg-orange-500 bg-opacity-20 border border-orange-500 rounded-full px-2 py-1 text-xs text-orange-400 font-medium flex items-center mr-2" title="External model - linked from another location">
+              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              External
+            </span>
           )}
-          
-          {/* Installed indicator */}
-          {model?.isInstalled && (
-            <div className="flex items-center">
-              <span className="bg-green-500 bg-opacity-20 border border-green-500 rounded-full px-2 py-1 text-xs text-green-500 font-medium flex items-center">
-                <CheckCircleIcon className="w-3 h-3 text-green-500 mr-1" />
-                Installed
-              </span>
-            </div>
+          {model.isActive || model.active ? (
+            <span className="bg-green-500 bg-opacity-20 border border-green-500 rounded-full px-2 py-1 text-xs text-green-500 font-medium flex items-center">
+              <CheckCircleIcon className="w-3 h-3 text-green-500 mr-1" />
+              Active
+            </span>
+          ) : (
+            <span className="bg-gray-500 bg-opacity-20 border border-gray-500 rounded-full px-2 py-1 text-xs text-gray-400 font-medium">
+              Inactive
+            </span>
           )}
         </div>
       </div>
       
       {/* Description */}
       <p className="text-gray-400 text-sm line-clamp-2 leading-relaxed">
-        {model?.description || 'No description available'}
+        {model?.description || `${model.isExternal ? 'External' : 'Local'} GGUF model${parameters ? ` with ${parameters} parameters` : ''}${quant ? ` (${quant} quantization)` : ''}`}
       </p>
+      
+      {/* External path info */}
+      {model.isExternal && model.externalPath && (
+        <div className="text-xs text-gray-500 truncate">
+          <span className="font-semibold">Path: </span>
+          <code className="bg-[#1a1a1a] px-1 py-0.5 rounded">{model.externalPath}</code>
+        </div>
+      )}
       
       {/* Tags and metadata */}
       <div className="flex flex-wrap gap-2">
+        {/* Parameters tag */}
+        {parameters && (
+          <span className="px-2 py-1 bg-blue-500 bg-opacity-20 border border-blue-500 text-blue-300 text-xs rounded-full font-medium flex items-center">
+            <CpuChipIcon className="w-3 h-3 mr-1" />
+            {parameters}
+          </span>
+        )}
+        
+        {/* Quantization tag */}
+        {(quant || model.quant) && (
+          <span className="px-2 py-1 bg-purple-500 bg-opacity-20 border border-purple-500 text-purple-300 text-xs rounded-full font-medium">
+            {quant || model.quant}
+          </span>
+        )}
+        
         {/* Pipeline tag */}
         {model.pipeline_tag && (
           <span className="px-2 py-1 bg-purple-500 bg-opacity-20 border border-purple-500 text-purple-300 text-xs rounded-full font-medium">
@@ -172,63 +215,50 @@ function ModelCard({ model, systemInfo, isActive, onDownload, onActivate, onDele
       
       {/* Action buttons footer */}
       <div className="flex space-x-2 pt-4 border-t border-[#3a3a3a]">
-        {!model.isInstalled && onDownload && (
+        {(model.isActive || model.active) ? (
           <motion.button
-            className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center font-medium"
+            className="flex-1 px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-all flex items-center justify-center font-medium"
             onClick={(e) => {
               e.stopPropagation();
-              onDownload(model.id, `${modelName}.Q4_K_M.gguf`); // Default quant
+              onDeactivate && onDeactivate(model.id);
             }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-            <span>Download</span>
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Deactivate</span>
           </motion.button>
-        )}
-        
-        {model.isInstalled && (
-          <div className="flex space-x-2 w-full">
-            <button
-              className="flex-1 px-3 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.electronAPI?.openModelsFolder();
-              }}
-              title="Open models folder"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
-              </svg>
-              <span>Open</span>
-            </button>
-            {onDelete && (
-              <button
-                className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                title="Delete this model"
-              >
-                <TrashIcon className="w-4 h-4 mr-2" />
-                <span>Delete</span>
-              </button>
-            )}
-          </div>
-        )}
-        
-        {!isActive && model.isInstalled && onActivate && (
-          <button
-            className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center"
+        ) : (
+          <motion.button
+            className="flex-1 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-all flex items-center justify-center font-medium"
             onClick={(e) => {
               e.stopPropagation();
-              onActivate(model.id);
+              onActivate && onActivate(model.id);
             }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             <PlayCircleIcon className="w-4 h-4 mr-2" />
             <span>Activate</span>
-          </button>
+          </motion.button>
+        )}
+        
+        {onDelete && (
+          <motion.button
+            className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(model.id);
+            }}
+            title={model.isExternal ? "Unlink from app (file will not be deleted from your computer)" : "Delete this model permanently"}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <TrashIcon className="w-4 h-4 mr-2" />
+            <span>{model.isExternal ? 'Unlink' : 'Remove'}</span>
+          </motion.button>
         )}
       </div>
     </motion.div>
@@ -253,16 +283,14 @@ ModelCard.propTypes = {
     avatar_url: PropTypes.string,
     lastModified: PropTypes.string,
     downloadedAt: PropTypes.string,
-    isInstalled: PropTypes.bool,
+    isActive: PropTypes.bool,
   }).isRequired,
   systemInfo: PropTypes.object,
   isActive: PropTypes.bool,
-  onDownload: PropTypes.func,
   onActivate: PropTypes.func,
+  onDeactivate: PropTypes.func,
   onDelete: PropTypes.func,
   onClick: PropTypes.func,
-  onFavorite: PropTypes.func,
-  isFavorite: PropTypes.bool,
 };
 
 export default ModelCard;
