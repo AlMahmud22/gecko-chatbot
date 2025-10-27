@@ -158,10 +158,17 @@ function ChatPage() {
       }
 
       ////// Run inference with the model
+      ////// Pass conversation history for proper context
       const response = await window.electronAPI.runInference({
         modelId: selectedModel.id || selectedModel,
         message,
-        config: { generationId }
+        config: { 
+          generationId,
+          conversationHistory: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+        }
       });
       
       if (response.error) {

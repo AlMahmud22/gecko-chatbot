@@ -118,7 +118,8 @@ export class LlamaCppEngine extends BaseInferenceEngine {
       );
       
       console.log(`Using template: ${templateType}`);
-      console.log(`Formatted prompt preview: ${formattedPrompt.substring(0, 200)}...`);
+      console.log(`Conversation history length: ${options.conversationHistory?.length || 0} messages`);
+      console.log(`Formatted prompt (first 500 chars):\n${formattedPrompt.substring(0, 500)}...`);
 
       //// Generate response
       const response = await session.prompt(formattedPrompt, {

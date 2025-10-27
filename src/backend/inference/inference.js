@@ -83,6 +83,8 @@ export async function runInference(modelId, message, config = {}) {
       topP: config.topP || 0.9,
       topK: config.topK || 40,
       stopStrings: config.stopStrings || undefined,
+      //// Pass conversation history for context
+      conversationHistory: config.conversationHistory || [],
       //// Pass abort signal
       abortSignal: abortController.signal,
       //// Streaming callback (if supported)
