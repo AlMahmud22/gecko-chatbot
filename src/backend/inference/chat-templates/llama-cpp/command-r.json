@@ -1,0 +1,20 @@
+{
+  "name": "command-r",
+  "description": "Cohere Command-R chat template for GGUF models",
+  "engine": "llama-cpp",
+  "patterns": ["command-?r", "c4ai-command"],
+  "priority": 10,
+  "roles": {
+    "system": "SYSTEM",
+    "user": "USER",
+    "assistant": "CHATBOT"
+  },
+  "stopTokens": ["<|END_OF_TURN_TOKEN|>"],
+  "template": {
+    "prefix": "<BOS_TOKEN>",
+    "systemMessage": "<|START_OF_TURN_TOKEN|><|SYSTEM_TOKEN|>{{content}}<|END_OF_TURN_TOKEN|>",
+    "userMessage": "<|START_OF_TURN_TOKEN|><|USER_TOKEN|>{{content}}<|END_OF_TURN_TOKEN|>",
+    "assistantMessage": "<|START_OF_TURN_TOKEN|><|CHATBOT_TOKEN|>{{content}}<|END_OF_TURN_TOKEN|>",
+    "suffix": "<|START_OF_TURN_TOKEN|><|CHATBOT_TOKEN|>"
+  }
+}

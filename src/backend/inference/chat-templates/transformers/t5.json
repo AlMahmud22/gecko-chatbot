@@ -1,0 +1,17 @@
+{
+  "name": "t5",
+  "description": "T5 encoder-decoder format for transformer models",
+  "engine": "transformers",
+  "patterns": ["t5", "flan-t5"],
+  "priority": 10,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["</s>"],
+  "template": {
+    "specialHandling": "t5_concatenate",
+    "message": "{{content}} "
+  }
+}

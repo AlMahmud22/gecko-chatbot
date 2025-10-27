@@ -1,0 +1,18 @@
+{
+  "name": "mistral",
+  "description": "Mistral AI chat template for transformer models",
+  "engine": "transformers",
+  "patterns": ["mistral", "mixtral"],
+  "priority": 10,
+  "roles": {
+    "system": "user",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["</s>", "[INST]"],
+  "template": {
+    "userMessage": "[INST] {{content}} [/INST]",
+    "systemMessage": "[INST] {{content}} [/INST]",
+    "assistantMessage": " {{content}}</s>"
+  }
+}

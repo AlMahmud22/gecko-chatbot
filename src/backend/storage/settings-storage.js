@@ -5,6 +5,7 @@ import {
   getStorageFilePath,
   readJSON,
   writeJSON,
+  writeJSONSafe,
   getTimestamp,
   successResponse,
   errorResponse,
@@ -47,10 +48,11 @@ function getDefaultSettings() {
   };
 }
 
-// Get all settings
-export async function getSettings() {
+// Get all settings (profile-aware)
+export async function getSettings(profileId = null) {
   try {
-    const filePath = getStorageFilePath(SETTINGS_FILE);
+    const baseFileName = profileId ? `settings-${profileId}.json` : SETTINGS_FILE;
+    const filePath = getStorageFilePath(baseFileName);
     const settings = readJSON(filePath, getDefaultSettings());
     
     return successResponse({ settings });
@@ -59,10 +61,11 @@ export async function getSettings() {
   }
 }
 
-// Get specific settings section
-export async function getSettingsSection(section) {
+// Get specific settings section (profile-aware)
+export async function getSettingsSection(section, profileId = null) {
   try {
-    const filePath = getStorageFilePath(SETTINGS_FILE);
+    const baseFileName = profileId ? `settings-${profileId}.json` : SETTINGS_FILE;
+    const filePath = getStorageFilePath(baseFileName);
     const allSettings = readJSON(filePath, getDefaultSettings());
     
     if (!allSettings[section]) {
@@ -75,10 +78,11 @@ export async function getSettingsSection(section) {
   }
 }
 
-// Update settings (deep merge)
-export async function updateSettings(newSettings) {
+// Update settings (deep merge) (profile-aware)
+export async function updateSettings(newSettings, profileId = null) {
   try {
-    const filePath = getStorageFilePath(SETTINGS_FILE);
+    const baseFileName = profileId ? `settings-${profileId}.json` : SETTINGS_FILE;
+    const filePath = getStorageFilePath(baseFileName);
     const currentSettings = readJSON(filePath, getDefaultSettings());
     
     // Deep merge settings
@@ -117,7 +121,7 @@ export async function updateSettingsSection(section, newValues) {
     };
     currentSettings.updatedAt = getTimestamp();
     
-    writeJSON(filePath, currentSettings);
+    await writeJSONSafe(filePath, currentSettings); // Use safe write
     
     return successResponse({ settings: currentSettings });
   } catch (err) {
@@ -132,7 +136,7 @@ export async function resetSettings() {
     const defaultSettings = getDefaultSettings();
     defaultSettings.resetAt = getTimestamp();
     
-    writeJSON(filePath, defaultSettings);
+    await writeJSONSafe(filePath, defaultSettings); // Use safe write
     
     return successResponse({ settings: defaultSettings });
   } catch (err) {
@@ -155,7 +159,7 @@ export async function resetSettingsSection(section) {
     currentSettings[section] = defaultSettings[section];
     currentSettings.updatedAt = getTimestamp();
     
-    writeJSON(filePath, currentSettings);
+    await writeJSONSafe(filePath, currentSettings); // Use safe write
     
     return successResponse({ settings: currentSettings });
   } catch (err) {
@@ -169,7 +173,7 @@ export async function exportSettings(exportPath) {
     const filePath = getStorageFilePath(SETTINGS_FILE);
     const settings = readJSON(filePath, getDefaultSettings());
     
-    writeJSON(exportPath, settings);
+    await writeJSONSafe(exportPath, settings); // Use safe write
     
     return successResponse({ exportPath });
   } catch (err) {
@@ -198,7 +202,7 @@ export async function importSettings(importPath) {
       updatedAt: getTimestamp(),
     };
     
-    writeJSON(filePath, mergedSettings);
+    await writeJSONSafe(filePath, mergedSettings); // Use safe write
     
     return successResponse({ settings: mergedSettings });
   } catch (err) {

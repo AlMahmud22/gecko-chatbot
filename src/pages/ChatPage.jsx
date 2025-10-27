@@ -46,19 +46,33 @@ function ChatPage() {
       const chatId = location.state?.chatId;
       if (chatId) {
         try {
-          const chat = await window.electronAPI.storage.chats.get(chatId);
+          const chatResult = await window.electronAPI.storage.chats.get(chatId);
+          const chat = chatResult?.chat || chatResult;
+          
           if (chat && chat.messages) {
             setMessages(chat.messages);
             setCurrentChatId(chatId);
+            
+            //// If the chat has a modelId and we're not already on that model's page, navigate to it
+            if (chat.modelId && (!modelId || decodeURIComponent(modelId) !== chat.modelId)) {
+              navigate(`/chat/${encodeURIComponent(chat.modelId)}`, { 
+                replace: true, 
+                state: { chatId: chatId } 
+              });
+            }
           }
         } catch (err) {
           console.error('Failed to load chat:', err);
         }
+      } else {
+        //// No chatId provided, start fresh chat
+        setMessages([]);
+        setCurrentChatId(null);
       }
     };
     
     loadChat();
-  }, [electronApi, location.state]);
+  }, [electronApi, location.state?.chatId, modelId, navigate]);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -143,17 +157,41 @@ function ChatPage() {
 
       ////// Save user message to chat storage
       if (currentChatId) {
-        await window.electronAPI.storage.chats.appendMessage(currentChatId, userMessage);
+        try {
+          await window.electronAPI.storage.chats.appendMessage(currentChatId, userMessage);
+          console.log('User message saved successfully');
+        } catch (saveErr) {
+          console.error('Failed to save user message:', saveErr);
+          // Continue with inference even if save fails
+        }
       } else {
         ////// Create new chat if this is the first message
-        const newChat = await window.electronAPI.storage.chats.create({
-          profileId: 'default',
-          title: message.substring(0, 50),
-          modelId: selectedModel.id || selectedModel,
-          messages: [userMessage]
-        });
-        if (newChat && newChat.id) {
-          setCurrentChatId(newChat.id);
+        ////// Generate title from first 20 words of message
+        const words = message.trim().split(/\s+/);
+        const titleWords = words.slice(0, 20).join(' ');
+        const title = titleWords.length < message.length ? titleWords + '...' : titleWords;
+        
+        const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
+        
+        try {
+          const newChatResult = await window.electronAPI.storage.chats.create({
+            profileId: currentProfileId,
+            title: title,
+            modelId: selectedModel.id || selectedModel,
+            messages: [userMessage]
+          });
+          
+          if (newChatResult.success && newChatResult.chat) {
+            setCurrentChatId(newChatResult.chat.id);
+            console.log('New chat created successfully:', newChatResult.chat.id);
+            //// Dispatch event to refresh chat history in sidebar
+            window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: newChatResult.chat.id } }));
+          } else {
+            console.error('Chat creation returned non-success result:', newChatResult);
+          }
+        } catch (createErr) {
+          console.error('Failed to create new chat:', createErr);
+          // Continue with inference even if chat creation fails
         }
       }
 
@@ -171,21 +209,84 @@ function ChatPage() {
         }
       });
       
+      console.log('Inference completed. Response:', {
+        success: response.success,
+        stopped: response.stopped,
+        hasError: !!response.error,
+        responseLength: response.response?.length || 0,
+        textLength: response.text?.length || 0
+      });
+      
       if (response.error) {
         throw new Error(response.error);
       }
       
-      ////// Handle stopped generation
-      const botMessage = { 
-        role: 'assistant', 
-        content: response.stopped ? '[Generation stopped by user]' : (response.response || response.text || ''), 
-        timestamp: new Date().toISOString() 
-      };
-      setMessages((prev) => [...prev, botMessage]);
+      //// Get response text
+      const responseText = response.stopped 
+        ? '[Generation stopped by user]' 
+        : (response.response || response.text || '');
       
-      ////// Save assistant message to chat storage
-      if (currentChatId) {
-        await window.electronAPI.storage.chats.appendMessage(currentChatId, botMessage);
+      console.log('Response text extracted:', {
+        length: responseText?.length,
+        preview: responseText?.substring(0, 100)
+      });
+      
+      //// Validate response - check for error patterns and empty responses
+      const isErrorResponse = responseText.includes('[Model generated an empty response') ||
+                             responseText.includes('[Model generated an invalid response') ||
+                             responseText.includes('[Unable to generate a valid response') ||
+                             responseText.match(/^\[NEVER\]$/i) ||
+                             responseText.match(/^\[ERROR\]/i) ||
+                             responseText.match(/^\[FAILED\]/i);
+      
+      //// Only save and display if response is valid and meaningful
+      if (responseText && responseText.trim().length > 0 && !isErrorResponse) {
+        const botMessage = { 
+          role: 'assistant', 
+          content: responseText, 
+          timestamp: new Date().toISOString() 
+        };
+        
+        setMessages((prev) => [...prev, botMessage]);
+        
+        ////// Save assistant message to chat storage with retry logic
+        if (currentChatId) {
+          let saveAttempts = 0;
+          const maxAttempts = 3;
+          let saved = false;
+          
+          while (saveAttempts < maxAttempts && !saved) {
+            try {
+              await window.electronAPI.storage.chats.appendMessage(currentChatId, botMessage);
+              console.log('Assistant message saved successfully');
+              saved = true;
+              
+              //// Dispatch event to refresh chat history in sidebar
+              window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: currentChatId } }));
+            } catch (saveErr) {
+              saveAttempts++;
+              console.error(`Failed to save assistant message (attempt ${saveAttempts}/${maxAttempts}):`, saveErr);
+              
+              if (saveAttempts < maxAttempts) {
+                // Wait before retry
+                await new Promise(resolve => setTimeout(resolve, 500));
+              } else {
+                // Final attempt failed - show warning but keep message in UI
+                console.error('CRITICAL: Failed to persist assistant message after all retries');
+                setError('Warning: Response may not be saved. Please try sending another message.');
+              }
+            }
+          }
+        }
+      } else {
+        console.error('Empty or invalid response received:', {
+          stopped: response.stopped,
+          response: response.response,
+          text: response.text,
+          isErrorResponse: isErrorResponse,
+          fullResponse: response
+        });
+        setError('Model generated an empty or invalid response. Please try again or try a different model.');
       }
     } catch (err) {
       console.error('Inference failed:', err);

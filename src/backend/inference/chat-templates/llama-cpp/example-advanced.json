@@ -1,0 +1,67 @@
+{
+  "_comment": "Example template showing all available features and options",
+  
+  "name": "example-advanced",
+  "description": "Advanced template example with all features demonstrated",
+  "engine": "llama-cpp",
+  
+  "patterns": [
+    "example-model",
+    "advanced-?model",
+    "test-?model"
+  ],
+  
+  "priority": 10,
+  
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  
+  "stopTokens": [
+    "</s>",
+    "<|end|>",
+    "[STOP]",
+    "\\n\\nUser:"
+  ],
+  
+  "template": {
+    "_comment_prefix": "Optional prefix added before all messages",
+    "prefix": "<|begin|>",
+    
+    "_comment_message": "Generic message format using placeholders",
+    "message": "<|{{role}}|>\\n{{content}}\\n<|end|>\\n",
+    
+    "_comment_suffix": "Added after all messages, prompts model to respond",
+    "suffix": "<|assistant|>\\n",
+    
+    "_comment_role_specific": "Override message format for specific roles",
+    "systemMessage": "<|system|>\\n{{content}}\\n<|end|>\\n",
+    "userMessage": "<|user|>\\n{{content}}\\n<|end|>\\n",
+    "assistantMessage": "<|assistant|>\\n{{content}}\\n<|end|>\\n",
+    
+    "_comment_special": "Special handling mode (optional)",
+    "specialHandling": null,
+    
+    "_comment_special_values": "Valid values: system_first_user_merge, alpaca_format, t5_concatenate, bart_concatenate"
+  },
+  
+  "_metadata": {
+    "created": "2025-10-28",
+    "author": "System",
+    "version": "1.0",
+    "notes": [
+      "This is an example template showing all available features",
+      "Copy this file and modify for your custom model",
+      "Remove _comment and _metadata fields in production templates"
+    ],
+    "usage_example": {
+      "input": [
+        {"role": "system", "content": "You are helpful"},
+        {"role": "user", "content": "Hello"}
+      ],
+      "output": "<|begin|><|system|>\\nYou are helpful\\n<|end|>\\n<|user|>\\nHello\\n<|end|>\\n<|assistant|>\\n"
+    }
+  }
+}

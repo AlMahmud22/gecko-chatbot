@@ -1,0 +1,19 @@
+{
+  "name": "alpaca",
+  "description": "Stanford Alpaca chat template for GGUF models",
+  "engine": "llama-cpp",
+  "patterns": ["alpaca"],
+  "priority": 10,
+  "roles": {
+    "system": "Instruction",
+    "user": "Input",
+    "assistant": "Response"
+  },
+  "stopTokens": ["###", "\\n\\n###"],
+  "template": {
+    "systemMessage": "### Instruction:\n{{content}}\n\n",
+    "userMessage": "### Input:\n{{content}}\n\n",
+    "suffix": "### Response:\n",
+    "specialHandling": "alpaca_format"
+  }
+}

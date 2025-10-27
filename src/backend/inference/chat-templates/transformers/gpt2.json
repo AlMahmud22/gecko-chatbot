@@ -1,0 +1,19 @@
+{
+  "name": "gpt2",
+  "description": "GPT-2 and generic transformer chat format",
+  "engine": "transformers",
+  "patterns": ["gpt-?2", "gpt2", "gptj", "gpt-j", "neox", "gpt-neox"],
+  "priority": 7,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["Human:", "Assistant:"],
+  "template": {
+    "systemMessage": "{{content}}\n\n",
+    "userMessage": "Human: {{content}}\n\n",
+    "assistantMessage": "Assistant: {{content}}\n\n",
+    "suffix": "Assistant: "
+  }
+}

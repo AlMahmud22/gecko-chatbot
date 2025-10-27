@@ -1,12 +1,15 @@
 // C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\storage\storage-router.js
 
-import { initializeStorage } from './storage.js';
+import { initializeStorage, shutdownStorage } from './storage.js';
 import * as ProfileStorage from './profile-storage.js';
 import * as ChatStorage from './chat-storage.js';
 import * as SettingsStorage from './settings-storage.js';
 
 // Initialize storage on first import
 initializeStorage();
+
+// Export shutdown function for graceful app exit
+export { shutdownStorage };
 
 // Profile Management Exports
 export const getProfiles = ProfileStorage.getProfiles;
@@ -23,6 +26,8 @@ export const getChat = ChatStorage.getChat;
 export const createChat = ChatStorage.createChat;
 export const updateChat = ChatStorage.updateChat;
 export const appendMessage = ChatStorage.appendMessage;
+export const updateMessage = ChatStorage.updateMessage; // New: for streaming updates
+export const flushMessages = ChatStorage.flushMessages; // New: flush WAL buffer
 export const deleteMessage = ChatStorage.deleteMessage;
 export const deleteChat = ChatStorage.deleteChat;
 export const clearChatMessages = ChatStorage.clearChatMessages;

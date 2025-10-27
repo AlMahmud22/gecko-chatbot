@@ -1,0 +1,18 @@
+{
+  "name": "llama3",
+  "description": "Meta Llama 3 chat template for transformer models",
+  "engine": "transformers",
+  "patterns": ["llama-?3", "llama3"],
+  "priority": 10,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["<|eot_id|>", "<|end_of_text|>"],
+  "template": {
+    "prefix": "<|begin_of_text|>",
+    "message": "<|start_header_id|>{{role}}<|end_header_id|>\n\n{{content}}<|eot_id|>",
+    "suffix": "<|start_header_id|>assistant<|end_header_id|>\n\n"
+  }
+}

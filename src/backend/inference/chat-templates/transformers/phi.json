@@ -1,0 +1,17 @@
+{
+  "name": "phi",
+  "description": "Microsoft Phi series chat template for transformer models",
+  "engine": "transformers",
+  "patterns": ["phi-?3", "phi3", "phi-?2", "phi2", "\\bphi\\b"],
+  "priority": 10,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["<|end|>", "<|user|>"],
+  "template": {
+    "message": "<|{{role}}|>\n{{content}}<|end|>\n",
+    "suffix": "<|assistant|>\n"
+  }
+}

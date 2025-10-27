@@ -1,0 +1,20 @@
+{
+  "name": "llama2",
+  "description": "Meta Llama 2 and CodeLlama chat template for GGUF models",
+  "engine": "llama-cpp",
+  "patterns": ["llama-?2", "llama2", "codellama", "code-llama"],
+  "priority": 9,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["</s>", "[INST]", "[/INST]"],
+  "template": {
+    "prefix": "<s>",
+    "systemMessage": "[INST] <<SYS>>\n{{content}}\n<</SYS>>\n\n",
+    "userMessage": "[INST] {{content}} [/INST]",
+    "assistantMessage": " {{content}}</s><s>",
+    "specialHandling": "system_first_user_merge"
+  }
+}

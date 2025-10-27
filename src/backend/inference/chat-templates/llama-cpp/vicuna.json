@@ -1,0 +1,19 @@
+{
+  "name": "vicuna",
+  "description": "Vicuna and WizardLM chat template for GGUF models",
+  "engine": "llama-cpp",
+  "patterns": ["vicuna", "wizardlm", "wizard-lm", "wizardcoder", "wizard-coder"],
+  "priority": 10,
+  "roles": {
+    "system": null,
+    "user": "USER",
+    "assistant": "ASSISTANT"
+  },
+  "stopTokens": ["USER:", "\\n\\nUSER:"],
+  "template": {
+    "systemMessage": "{{content}}\n\n",
+    "userMessage": "USER: {{content}}\n",
+    "assistantMessage": "ASSISTANT: {{content}}\n",
+    "suffix": "ASSISTANT: "
+  }
+}

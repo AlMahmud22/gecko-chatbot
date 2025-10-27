@@ -1,23 +1,31 @@
 import { useState, useEffect } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   ChatBubbleLeftIcon,
   CpuChipIcon,
   Cog6ToothIcon,
-  UserCircleIcon,
   Bars3Icon,
   ChevronDownIcon,
   PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  CheckIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useElectronApi } from "../../contexts/ElectronApiContext";
+import ProfileMenu from "../Profile/ProfileMenu";
 
 function Sidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isApiReady } = useElectronApi();
   const [expanded, setExpanded] = useState(false);
   const [showChats, setShowChats] = useState(true);
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [editingChatId, setEditingChatId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   ////// Load recent chats from storage on mount
   useEffect(() => {
@@ -26,8 +34,10 @@ function Sidebar() {
       
       try {
         setLoading(true);
-        ////// Get all chats for default profile
-        const result = await window.electronAPI.storage.chats.getAll('default');
+        ////// Get current profile ID
+        const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
+        ////// Get all chats for current profile
+        const result = await window.electronAPI.storage.chats.getAll(currentProfileId);
         const chatList = result?.chats || result || [];
         ////// Sort by last updated and take top 10
         const sortedChats = Array.isArray(chatList) 
@@ -42,16 +52,123 @@ function Sidebar() {
     };
 
     loadChats();
+    
+    // Reload chats when profile changes
+    const handleStorageChange = () => {
+      loadChats();
+    };
+    
+    // Listen for chat updates from ChatPage
+    const handleChatUpdated = (event) => {
+      loadChats();
+      // Set the active chat ID when a chat is updated
+      if (event.detail?.chatId) {
+        setActiveChatId(event.detail.chatId);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('chatUpdated', handleChatUpdated);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('chatUpdated', handleChatUpdated);
+    };
   }, [isApiReady]);
 
+  ////// Track active chat from URL
+  useEffect(() => {
+    const chatId = location.state?.chatId;
+    if (chatId) {
+      setActiveChatId(chatId);
+    }
+  }, [location.state?.chatId]);
+
   ////// Create new chat and navigate to chat page
-  const handleNewChat = () => {
-    navigate('/chat');
+  const handleNewChat = async () => {
+    try {
+      //// Auto-expand sidebar
+      if (!expanded) {
+        setExpanded(true);
+      }
+      //// Clear active chat since we're starting fresh
+      setActiveChatId(null);
+      //// Just navigate to the chat page without creating a new chat
+      //// A new chat will be created when the user sends the first message
+      navigate('/chat');
+    } catch (err) {
+      console.error('Failed to navigate to chat:', err);
+    }
+  };
+
+  ////// Handle chat rename
+  const handleRenameChat = async (chatId, newTitle) => {
+    try {
+      await window.electronAPI.storage.chats.update(chatId, { title: newTitle });
+      // Refresh chat list
+      const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
+      const result = await window.electronAPI.storage.chats.getAll(currentProfileId);
+      const chatList = result?.chats || result || [];
+      const sortedChats = Array.isArray(chatList) 
+        ? chatList.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 10)
+        : [];
+      setChats(sortedChats);
+      setEditingChatId(null);
+      setEditingTitle('');
+    } catch (err) {
+      console.error('Failed to rename chat:', err);
+    }
+  };
+
+  ////// Handle chat delete
+  const handleDeleteChat = async (chatId) => {
+    if (!window.confirm('Are you sure you want to delete this chat?')) {
+      return;
+    }
+    
+    try {
+      await window.electronAPI.storage.chats.delete(chatId);
+      // Refresh chat list
+      const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
+      const result = await window.electronAPI.storage.chats.getAll(currentProfileId);
+      const chatList = result?.chats || result || [];
+      const sortedChats = Array.isArray(chatList) 
+        ? chatList.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 10)
+        : [];
+      setChats(sortedChats);
+      
+      // If deleted chat was active, clear active chat
+      if (activeChatId === chatId) {
+        setActiveChatId(null);
+        navigate('/chat');
+      }
+    } catch (err) {
+      console.error('Failed to delete chat:', err);
+    }
+  };
+
+  ////// Handle starting edit
+  const startEditingChat = (chat) => {
+    setEditingChatId(chat.id);
+    setEditingTitle(chat.title || '');
+  };
+
+  ////// Handle cancel edit
+  const cancelEditingChat = () => {
+    setEditingChatId(null);
+    setEditingTitle('');
   };
 
   const navLinkClass = ({ isActive }) =>
     `flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#2a2a2a] transition-all duration-200
      ${isActive ? "bg-[#2a2a2a] text-white" : "text-gray-400"}`;
+
+  ////// Auto-expand sidebar when clicking on navigation links
+  const handleNavClick = () => {
+    if (!expanded) {
+      setExpanded(true);
+    }
+  };
 
   return (
     <div
@@ -115,28 +232,117 @@ function Sidebar() {
         {expanded && showChats && (
           <div
             id="chat-list"
-            className="ml-11 mt-2 space-y-1 max-h-[200px] overflow-y-auto custom-scrollbar"
+            className="ml-4 mt-2 space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar"
           >
             {loading ? (
-              <span className="text-xs text-gray-500 italic">Loading...</span>
+              <span className="text-xs text-gray-500 italic px-3">Loading...</span>
             ) : chats.length > 0 ? (
               chats.map((chat) => (
-                <button
+                <div
                   key={chat.id}
-                  onClick={() => navigate(`/chat/${chat.modelId}`, { state: { chatId: chat.id } })}
-                  className="block text-gray-400 text-sm hover:text-white truncate w-full text-left"
+                  className={`group flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                    activeChatId === chat.id 
+                      ? 'bg-[#2a2a2a] text-white' 
+                      : 'text-gray-400 hover:bg-[#1a1a1a]'
+                  }`}
                 >
-                  {chat.title || 'Untitled Chat'}
-                </button>
+                  {editingChatId === chat.id ? (
+                    // Edit mode
+                    <>
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleRenameChat(chat.id, editingTitle);
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cancelEditingChat();
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.target.select()}
+                        className="flex-1 bg-[#0c0c0c] text-white text-sm px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRenameChat(chat.id, editingTitle);
+                        }}
+                        className="p-1 text-green-400 hover:text-green-300 flex-shrink-0"
+                        title="Save"
+                      >
+                        <CheckIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cancelEditingChat();
+                        }}
+                        className="p-1 text-red-400 hover:text-red-300 flex-shrink-0"
+                        title="Cancel"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    // Normal mode
+                    <>
+                      <button
+                        onClick={() => {
+                          setActiveChatId(chat.id);
+                          if (chat.modelId) {
+                            navigate(`/chat/${encodeURIComponent(chat.modelId)}`, { state: { chatId: chat.id } });
+                          } else {
+                            navigate(`/chat`, { state: { chatId: chat.id } });
+                          }
+                        }}
+                        className="flex-1 text-left text-sm truncate"
+                        title={chat.title || 'Untitled Chat'}
+                      >
+                        {chat.title || 'Untitled Chat'}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEditingChat(chat);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-400 transition-opacity"
+                        title="Rename"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteChat(chat.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-400 transition-opacity"
+                        title="Delete"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
               ))
             ) : (
-              <span className="text-xs text-gray-500 italic">No conversations yet</span>
+              <span className="text-xs text-gray-500 italic px-3">No conversations yet</span>
             )}
           </div>
         )}
 
         {/* Models */}
-        <NavLink id="models-link" to="/models" className={navLinkClass}>
+        <NavLink 
+          id="models-link" 
+          to="/models" 
+          className={navLinkClass}
+          onClick={handleNavClick}
+        >
           <CpuChipIcon className="w-6 h-6 min-w-[24px]" />
           {expanded && <span className="text-sm">Models</span>}
         </NavLink>
@@ -148,24 +354,18 @@ function Sidebar() {
       {/* Bottom Section */}
       <div className="flex flex-col space-y-2 w-full border-t border-[#2a2a2a] pt-4">
         {/* Settings */}
-        <NavLink id="settings-link" to="/settings" className={navLinkClass}>
+        <NavLink 
+          id="settings-link" 
+          to="/settings" 
+          className={navLinkClass}
+          onClick={handleNavClick}
+        >
           <Cog6ToothIcon className="w-6 h-6 min-w-[24px]" />
           {expanded && <span className="text-sm">Settings</span>}
         </NavLink>
 
         {/* Profile */}
-        <button
-          id="profile-btn"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-[#2a2a2a] transition-colors w-full"
-        >
-          <UserCircleIcon className="w-7 h-7 min-w-[28px]" />
-          {expanded && (
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-medium text-white">Guest</span>
-              <span className="text-xs text-gray-500">View Profile</span>
-            </div>
-          )}
-        </button>
+        <ProfileMenu expanded={expanded} onInteraction={handleNavClick} />
       </div>
     </div>
   );

@@ -193,13 +193,19 @@ export class TransformersChatTemplateRegistry {
   //// @param prompt - The user prompt text
   //// @param templateType - The template type to use (e.g., 'llama2', 'mistral')
   //// @param conversationHistory - Array of previous messages [{role, content}]
-  //// @returns Formatted prompt string ready for model input
+  //// @returns Object with formatted prompt string and stop sequences
   formatPrompt(prompt, templateType, conversationHistory = []) {
     //// Build complete message array including history and current prompt
     const messages = [...conversationHistory];
     
-    //// Add current user prompt if not already in history
-    if (!messages.length || messages[messages.length - 1].role !== 'user' || messages[messages.length - 1].content !== prompt) {
+    //// Only add current prompt if it's not already the last message
+    //// Check both content AND that it's a user message
+    const lastMsg = messages[messages.length - 1];
+    const shouldAddPrompt = !lastMsg || 
+                           lastMsg.role !== 'user' || 
+                           lastMsg.content.trim() !== prompt.trim();
+    
+    if (shouldAddPrompt) {
       messages.push({ role: 'user', content: prompt });
     }
 
@@ -208,11 +214,84 @@ export class TransformersChatTemplateRegistry {
     
     if (!templateFn) {
       console.warn(`Template type '${templateType}' not found, using chatml as fallback`);
-      return this.templates.chatml(messages);
+      return {
+        prompt: this.templates.chatml(messages),
+        stopStrings: ['<|im_end|>', '<|im_start|>']
+      };
     }
 
-    //// Apply the template and return formatted prompt
-    return templateFn(messages);
+    //// Apply the template and return formatted prompt with stop strings
+    const formattedPrompt = templateFn(messages);
+    const stopStrings = this.getStopStrings(templateType);
+    
+    return {
+      prompt: formattedPrompt,
+      stopStrings: stopStrings
+    };
+  }
+
+  //// Get appropriate stop strings for each template type
+  getStopStrings(templateType) {
+    const stopStringsMap = {
+      'llama2': ['</s>', '[INST]'],
+      'llama3': ['<|eot_id|>', '<|end_of_text|>'],
+      'mistral': ['</s>', '[INST]'],
+      'chatml': ['<|im_end|>', '<|im_start|>'],
+      'alpaca': ['###', '\n\n###'],
+      'vicuna': ['USER:', '\n\nUSER:'],
+      'phi': ['<|end|>', '<|user|>'],
+      'gemma': ['<end_of_turn>', '<start_of_turn>'],
+      'command-r': ['<|END_OF_TURN_TOKEN|>'],
+      'gpt2': ['\n\nHuman:', 'Human:'],
+      't5': [],
+      'bart': []
+    };
+    
+    return stopStringsMap[templateType] || ['<|im_end|>', '<|im_start|>'];
+  }
+
+  //// Clean response text by removing any template artifacts
+  cleanResponse(responseText, templateType) {
+    let cleaned = responseText;
+    
+    //// Remove common template artifacts that might leak through
+    const artifactsToRemove = [
+      '</s>',
+      '<s>',
+      '[INST]',
+      '[/INST]',
+      '<|im_start|>',
+      '<|im_end|>',
+      '<|eot_id|>',
+      '<|end_of_text|>',
+      '<|begin_of_text|>',
+      '<|end|>',
+      '<|user|>',
+      '<|assistant|>',
+      '<|system|>',
+      '<end_of_turn>',
+      '<start_of_turn>',
+      '<bos>',
+      '<eos>',
+      'USER:',
+      'ASSISTANT:',
+      '<BOS_TOKEN>',
+      '<|START_OF_TURN_TOKEN|>',
+      '<|END_OF_TURN_TOKEN|>',
+      '<|USER_TOKEN|>',
+      '<|CHATBOT_TOKEN|>',
+      '<|SYSTEM_TOKEN|>'
+    ];
+    
+    //// Remove artifacts from the response
+    for (const artifact of artifactsToRemove) {
+      cleaned = cleaned.split(artifact).join('');
+    }
+    
+    //// Clean up excessive whitespace
+    cleaned = cleaned.trim();
+    
+    return cleaned;
   }
 
   //// Get list of all available template types

@@ -5,6 +5,7 @@ import {
   getStorageFilePath,
   readJSON,
   writeJSON,
+  writeJSONSafe,
   generateId,
   getTimestamp,
   successResponse,
@@ -17,9 +18,12 @@ const PROFILES_FILE = 'profiles.json';
 export async function getProfiles() {
   try {
     const filePath = getStorageFilePath(PROFILES_FILE);
+    console.log('getProfiles - Reading from:', filePath);
     const data = readJSON(filePath, { profiles: [] });
+    console.log('getProfiles - Data read:', data);
     return successResponse({ profiles: data.profiles || [] });
   } catch (err) {
+    console.error('getProfiles - Error:', err);
     return errorResponse(err);
   }
 }
@@ -44,8 +48,12 @@ export async function getProfile(profileId) {
 // Create new profile
 export async function createProfile(profileData) {
   try {
+    console.log('createProfile - Input data:', profileData);
     const filePath = getStorageFilePath(PROFILES_FILE);
+    console.log('createProfile - File path:', filePath);
+    
     const data = readJSON(filePath, { profiles: [] });
+    console.log('createProfile - Current data:', data);
     
     const newProfile = {
       id: generateId(),
@@ -58,11 +66,17 @@ export async function createProfile(profileData) {
       ...profileData,
     };
     
+    console.log('createProfile - New profile:', newProfile);
+    
     data.profiles.push(newProfile);
-    writeJSON(filePath, data);
+    console.log('createProfile - Updated data:', data);
+    
+    const writeSuccess = await writeJSONSafe(filePath, data); // Use safe write
+    console.log('createProfile - Write success:', writeSuccess);
     
     return successResponse({ profile: newProfile });
   } catch (err) {
+    console.error('createProfile - Error:', err);
     return errorResponse(err);
   }
 }
@@ -86,7 +100,7 @@ export async function updateProfile(profileId, updates) {
       updatedAt: getTimestamp(),
     };
     
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
     return successResponse({ profile: data.profiles[profileIndex] });
   } catch (err) {
@@ -107,7 +121,7 @@ export async function deleteProfile(profileId) {
       throw new Error('Profile not found');
     }
     
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
     return successResponse({ deleted: true });
   } catch (err) {
@@ -124,17 +138,54 @@ export async function importProfile(filePath) {
     
     const profileData = readJSON(filePath);
     
-    // Create new profile with imported data
-    profileData.id = generateId();
-    profileData.importedAt = getTimestamp();
-    profileData.updatedAt = getTimestamp();
+    // Validate profile data structure
+    if (!profileData.profile) {
+      throw new Error('Invalid profile file format');
+    }
+    
+    // Create new profile with imported data (generate new ID)
+    const newProfile = {
+      ...profileData.profile,
+      id: generateId(),
+      importedAt: getTimestamp(),
+      updatedAt: getTimestamp(),
+    };
     
     const storageFile = getStorageFilePath(PROFILES_FILE);
     const data = readJSON(storageFile, { profiles: [] });
-    data.profiles.push(profileData);
-    writeJSON(storageFile, data);
+    data.profiles.push(newProfile);
+    await writeJSONSafe(storageFile, data); // Use safe write
     
-    return successResponse({ profile: profileData });
+    // Import chats if available
+    if (profileData.chats && Array.isArray(profileData.chats)) {
+      const chatsFilePath = getStorageFilePath('chats.json');
+      const chatsData = readJSON(chatsFilePath, { chats: [] });
+      
+      // Update chat profileIds to new profile ID
+      const importedChats = profileData.chats.map(chat => ({
+        ...chat,
+        id: generateId(),
+        profileId: newProfile.id,
+        importedAt: getTimestamp(),
+      }));
+      
+      chatsData.chats.push(...importedChats);
+      await writeJSONSafe(chatsFilePath, chatsData); // Use safe write
+    }
+    
+    // Import settings if available (merge with existing)
+    if (profileData.settings) {
+      const settingsFilePath = getStorageFilePath('settings.json');
+      const currentSettings = readJSON(settingsFilePath, {});
+      const mergedSettings = {
+        ...currentSettings,
+        ...profileData.settings,
+        updatedAt: getTimestamp(),
+      };
+      await writeJSONSafe(settingsFilePath, mergedSettings); // Use safe write
+    }
+    
+    return successResponse({ profile: newProfile });
   } catch (err) {
     return errorResponse(err);
   }

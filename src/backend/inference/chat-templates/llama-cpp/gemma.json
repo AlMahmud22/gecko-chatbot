@@ -1,0 +1,20 @@
+{
+  "name": "gemma",
+  "description": "Google Gemma chat template for GGUF models",
+  "engine": "llama-cpp",
+  "patterns": ["gemma-?2", "gemma2", "gemma"],
+  "priority": 10,
+  "roles": {
+    "system": "user",
+    "user": "user",
+    "assistant": "model"
+  },
+  "stopTokens": ["<end_of_turn>", "<start_of_turn>"],
+  "template": {
+    "prefix": "<bos>",
+    "userMessage": "<start_of_turn>user\n{{content}}<end_of_turn>\n",
+    "systemMessage": "<start_of_turn>user\n{{content}}<end_of_turn>\n",
+    "assistantMessage": "<start_of_turn>model\n{{content}}<end_of_turn>\n",
+    "suffix": "<start_of_turn>model\n"
+  }
+}

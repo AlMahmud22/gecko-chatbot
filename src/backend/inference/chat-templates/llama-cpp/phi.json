@@ -1,0 +1,17 @@
+{
+  "name": "phi",
+  "description": "Microsoft Phi series chat template for GGUF models",
+  "engine": "llama-cpp",
+  "patterns": ["phi-?3", "phi3", "phi-?2", "phi2", "\\bphi\\b", "phi-?1"],
+  "priority": 10,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["<|end|>", "<|user|>", "<|assistant|>"],
+  "template": {
+    "message": "<|{{role}}|>\n{{content}}<|end|>\n",
+    "suffix": "<|assistant|>\n"
+  }
+}

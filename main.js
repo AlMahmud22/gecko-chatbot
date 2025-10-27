@@ -1,8 +1,10 @@
 // C:\Users\mahmu\Desktop\final\lama\equators-chatbot\main.js
 
-import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, shell, dialog } from 'electron';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 // Backend imports - Models
@@ -48,6 +50,8 @@ import {
   createChat,
   updateChat,
   appendMessage,
+  updateMessage,
+  flushMessages,
   deleteMessage,
   deleteChat,
   clearChatMessages,
@@ -60,6 +64,7 @@ import {
   resetSettingsSection,
   exportSettings,
   importSettings,
+  shutdownStorage,
 } from './src/backend/storage/storage-router.js';
 
 dotenv.config();
@@ -269,8 +274,12 @@ ipcMain.handle('stop-generation', async (_, { generationId }) => {
 // IPC Handlers – Storage: Profiles
 ipcMain.handle('storage:get-profiles', async () => {
   try {
-    return await getProfiles();
+    console.log('IPC: storage:get-profiles called');
+    const result = await getProfiles();
+    console.log('IPC: storage:get-profiles result:', result);
+    return result;
   } catch (err) {
+    console.error('IPC: storage:get-profiles error:', err);
     return { success: false, error: err.message };
   }
 });
@@ -323,6 +332,142 @@ ipcMain.handle('storage:export-profile', async (_, profileId, exportPath) => {
   }
 });
 
+// Custom Import/Export with Dialog and Encryption
+const ENCRYPTION_KEY = 'equators-chatbot-profile-key-2025'; // You should use a more secure key management
+
+function encrypt(text) {
+  const algorithm = 'aes-256-ctr';
+  const secretKey = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(algorithm, secretKey, iv);
+  const encrypted = Buffer.concat([cipher.update(text), cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decrypt(hash) {
+  const algorithm = 'aes-256-ctr';
+  const secretKey = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+  const parts = hash.split(':');
+  const iv = Buffer.from(parts.shift(), 'hex');
+  const encryptedText = Buffer.from(parts.join(':'), 'hex');
+  const decipher = crypto.createDecipheriv(algorithm, secretKey, iv);
+  const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
+  return decrypted.toString();
+}
+
+ipcMain.handle('import-profile', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import Profile',
+      filters: [
+        { name: 'Profile Files', extensions: ['profile'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+      return { success: false, error: 'Import canceled' };
+    }
+
+    const filePath = result.filePaths[0];
+    
+    // Read and decrypt the file
+    const encryptedData = fs.readFileSync(filePath, 'utf8');
+    let profileData;
+    
+    try {
+      // Try to decrypt (for encrypted files)
+      const decryptedData = decrypt(encryptedData);
+      profileData = JSON.parse(decryptedData);
+    } catch (decryptErr) {
+      // If decryption fails, try parsing as plain JSON (backwards compatibility)
+      try {
+        profileData = JSON.parse(encryptedData);
+      } catch (parseErr) {
+        throw new Error('Invalid profile file format');
+      }
+    }
+    
+    // Validate structure
+    if (!profileData.profile) {
+      throw new Error('Invalid profile data structure');
+    }
+    
+    // Import using the backend function
+    // First write the decrypted data to a temp location
+    const tempPath = path.join(app.getPath('temp'), 'temp-profile-import.json');
+    fs.writeFileSync(tempPath, JSON.stringify(profileData), 'utf8');
+    
+    const importResult = await importProfile(tempPath);
+    
+    // Clean up temp file
+    try {
+      fs.unlinkSync(tempPath);
+    } catch (cleanupErr) {
+      console.warn('Failed to clean up temp file:', cleanupErr);
+    }
+    
+    return importResult;
+  } catch (err) {
+    console.error('Failed to import profile:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('export-profile', async (_, profileId) => {
+  try {
+    // Get profile data
+    const profileResult = await getProfile(profileId);
+    if (!profileResult.success) {
+      return { success: false, error: 'Profile not found' };
+    }
+
+    const profile = profileResult.profile;
+    
+    // Get all chats for this profile
+    const chatsResult = await getChats(profileId);
+    const chats = chatsResult.chats || [];
+    
+    // Get settings
+    const settingsResult = await getSettings();
+    const settings = settingsResult.settings || {};
+    
+    // Combine all data
+    const exportData = {
+      profile,
+      chats,
+      settings,
+      exportedAt: new Date().toISOString(),
+      version: '1.0.0'
+    };
+    
+    // Show save dialog
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Profile',
+      defaultPath: `${profile.name.toLowerCase().replace(/\s+/g, '-')}.profile`,
+      filters: [
+        { name: 'Profile Files', extensions: ['profile'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: 'Export canceled' };
+    }
+
+    // Encrypt and save
+    const dataString = JSON.stringify(exportData, null, 2);
+    const encryptedData = encrypt(dataString);
+    fs.writeFileSync(result.filePath, encryptedData, 'utf8');
+    
+    return { success: true, exportPath: result.filePath };
+  } catch (err) {
+    console.error('Failed to export profile:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 // IPC Handlers – Storage: Chats
 ipcMain.handle('storage:get-chats', async (_, profileId) => {
   try {
@@ -359,6 +504,22 @@ ipcMain.handle('storage:update-chat', async (_, chatId, updates) => {
 ipcMain.handle('storage:append-message', async (_, chatId, message) => {
   try {
     return await appendMessage(chatId, message);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:update-message', async (_, chatId, messageId, content) => {
+  try {
+    return await updateMessage(chatId, messageId, content);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:flush-messages', async (_, chatId) => {
+  try {
+    return await flushMessages(chatId);
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -627,8 +788,18 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  // Flush all pending writes before quitting
+  await shutdownStorage();
+  
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// Handle app quit - ensure clean shutdown
+app.on('before-quit', async (event) => {
+  event.preventDefault();
+  await shutdownStorage();
+  app.exit(0);
 });

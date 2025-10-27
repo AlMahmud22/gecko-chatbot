@@ -27,6 +27,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   changeModelsDirectory: () => ipcRenderer.invoke('change-models-directory'),
   resetModelsDirectory: () => ipcRenderer.invoke('reset-models-directory'),
 
+  // Profile Import/Export with Dialog
+  importProfile: () => ipcRenderer.invoke('import-profile'),
+  exportProfile: (profileId) => ipcRenderer.invoke('export-profile', profileId),
+
   // Inference APIs
   loadModel: (modelId, config) => ipcRenderer.invoke('load-model', modelId, config),
   unloadModel: (modelId) => ipcRenderer.invoke('unload-model', modelId),
@@ -57,6 +61,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       update: (chatId, updates) => ipcRenderer.invoke('storage:update-chat', chatId, updates),
       delete: (chatId) => ipcRenderer.invoke('storage:delete-chat', chatId),
       appendMessage: (chatId, message) => ipcRenderer.invoke('storage:append-message', chatId, message),
+      updateMessage: (chatId, messageId, content) => ipcRenderer.invoke('storage:update-message', chatId, messageId, content),
+      flushMessages: (chatId) => ipcRenderer.invoke('storage:flush-messages', chatId),
       deleteMessage: (chatId, messageId) => ipcRenderer.invoke('storage:delete-message', chatId, messageId),
       clearMessages: (chatId) => ipcRenderer.invoke('storage:clear-chat-messages', chatId),
       search: (query, profileId) => ipcRenderer.invoke('storage:search-chats', query, profileId),

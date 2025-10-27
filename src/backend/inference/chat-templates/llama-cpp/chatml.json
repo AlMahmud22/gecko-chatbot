@@ -1,0 +1,21 @@
+{
+  "name": "chatml",
+  "description": "ChatML format for various models (Nous, Dolphin, Zephyr, OpenChat, etc.)",
+  "engine": "llama-cpp",
+  "patterns": [
+    "hermes", "dolphin", "nous", "zephyr", "openchat", "openhermes",
+    "orca", "capybara", "qwen", "chatglm", "yi-", "falcon", "mpt",
+    "stablelm", "deepseek", "neural-?chat", "solar", "instruct", "chat"
+  ],
+  "priority": 8,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["<|im_end|>", "<|im_start|>"],
+  "template": {
+    "message": "<|im_start|>{{role}}\n{{content}}<|im_end|>\n",
+    "suffix": "<|im_start|>assistant\n"
+  }
+}

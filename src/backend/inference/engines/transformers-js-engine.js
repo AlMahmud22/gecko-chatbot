@@ -1,10 +1,10 @@
 //// src/backend/engines/transformers-js-engine.js
-//// Transformers.js Inference Engine
+//// Transformers.js Inference Engine - File-based Template System
 //// Handles ONNX, SafeTensors, and PyTorch models
-//// Uses @xenova/transformers library
+//// Uses @xenova/transformers library with file-based template loading
 
 import { BaseInferenceEngine } from './base-engine.js';
-import { TransformersChatTemplateRegistry } from '../chat-templates/transforemers-chat-template-registry.js';
+import { transformersTemplateLoader } from '../chat-templates/transformers-template-loader.js';
 import path from 'path';
 
 let pipeline, env;
@@ -13,10 +13,11 @@ export class TransformersJsEngine extends BaseInferenceEngine {
   constructor() {
     super('transformers.js');
     this.pipelines = new Map();
-    this.templateRegistry = new TransformersChatTemplateRegistry();
+    this.modelConfigs = new Map();
+    this.templatesLoaded = false;
   }
 
-  //// Initialize transformers.js (lazy loading)
+  //// Initialize transformers.js and load templates (lazy loading)
   async initialize() {
     if (pipeline) return;
 
@@ -30,9 +31,15 @@ export class TransformersJsEngine extends BaseInferenceEngine {
       env.allowLocalModels = true;
       env.useBrowserCache = false;
       
-      console.log('transformers.js engine initialized');
+      //// Load file-based templates
+      if (!this.templatesLoaded) {
+        await transformersTemplateLoader.loadTemplates();
+        this.templatesLoaded = true;
+      }
+      
+      console.log('[transformers.js] Engine initialized with file-based templates');
     } catch (err) {
-      console.error('Failed to initialize transformers.js:', err);
+      console.error('[transformers.js] Failed to initialize:', err);
       throw new Error('@xenova/transformers not installed. Run: npm install @xenova/transformers');
     }
   }
@@ -56,7 +63,7 @@ export class TransformersJsEngine extends BaseInferenceEngine {
     const modelId = config.modelName || path.basename(modelPath, path.extname(modelPath));
     
     try {
-      console.log(`Loading model with transformers.js: ${modelPath}`);
+      console.log(`[transformers.js] Loading model: ${modelPath}`);
 
       //// Determine task type (can be auto-detected or specified)
       const task = config.task || 'text-generation';
@@ -82,26 +89,34 @@ export class TransformersJsEngine extends BaseInferenceEngine {
         modelPath: modelPath,
       });
 
-      //// Detect and store template type
-      const templateType = this.detectTemplateFromModelName(modelId);
-      console.log(`Detected template for ${modelId}: ${templateType}`);
+      //// Detect and store template using file-based loader
+      const templateFamily = transformersTemplateLoader.detectModelFamily(modelId);
+      const template = transformersTemplateLoader.getTemplate(templateFamily);
+      
+      this.modelConfigs.set(modelId, {
+        family: templateFamily,
+        template: template
+      });
 
-      console.log(`  Model loaded: ${modelId} (task: ${task})`);
+      console.log(`[transformers.js] Model loaded: ${modelId} (task: ${task})`);
+      console.log(`[transformers.js] Template: ${template.name}`);
 
       return {
         id: modelId,
         name: modelId,
         path: modelPath,
         task: task,
+        template: template.name,
+        family: templateFamily,
         loaded: true,
       };
     } catch (err) {
-      console.error(`Failed to load model ${modelId}:`, err);
+      console.error(`[transformers.js] Failed to load model ${modelId}:`, err);
       
       //// If local loading fails, might be a HuggingFace model name
       if (err.message.includes('local_files_only')) {
-        console.warn('Local model loading failed. This might be a HuggingFace model name.');
-        console.warn('For HuggingFace models, use the model name directly (e.g., "Xenova/gpt2")');
+        console.warn('[transformers.js] Local model loading failed. This might be a HuggingFace model name.');
+        console.warn('[transformers.js] For HuggingFace models, use the model name directly (e.g., "Xenova/gpt2")');
       }
       
       throw err;
@@ -115,22 +130,29 @@ export class TransformersJsEngine extends BaseInferenceEngine {
     }
 
     const { pipeline: pipe, task } = this.pipelines.get(modelId);
+    const modelConfig = this.modelConfigs.get(modelId);
     const startTime = Date.now();
 
+    if (!modelConfig) {
+      throw new Error(`No configuration found for model ${modelId}`);
+    }
+
     try {
-      //// Detect template type for this model
-      const templateType = this.detectTemplateFromModelName(modelId);
-      
-      //// Format prompt with appropriate chat template
-      const formattedPrompt = this.templateRegistry.formatPrompt(
-        prompt,
-        templateType,
+      //// Filter conversation history to remove any invalid responses
+      const validHistory = transformersTemplateLoader.filterConversationHistory(
         options.conversationHistory || []
       );
       
-      console.log(`Using template: ${templateType}`);
-      console.log(`Conversation history length: ${options.conversationHistory?.length || 0} messages`);
-      console.log(`Formatted prompt (first 500 chars):\n${formattedPrompt.substring(0, 500)}...`);
+      //// Format prompt with appropriate chat template and get stop strings
+      const { prompt: formattedPrompt, stopTokens } = transformersTemplateLoader.formatPrompt(
+        [...validHistory, { role: 'user', content: prompt }],
+        modelConfig.family
+      );
+      
+      console.log(`[transformers.js] Using template: ${modelConfig.template.name}`);
+      console.log(`[transformers.js] History: ${validHistory.length} messages`);
+      console.log(`[transformers.js] Stop tokens: ${stopTokens.join(', ')}`);
+      console.log(`[transformers.js] Prompt preview:\n${formattedPrompt.substring(0, 500)}...`);
 
       let result;
 
@@ -150,8 +172,26 @@ export class TransformersJsEngine extends BaseInferenceEngine {
         
         const elapsed = Date.now() - startTime;
 
+        //// Clean the response to remove any template artifacts
+        const cleanedResponse = transformersTemplateLoader.cleanResponse(generatedText);
+
+        //// Validate the response
+        const isValid = transformersTemplateLoader.isValidResponse(cleanedResponse);
+        
+        if (!isValid) {
+          console.warn('[transformers.js] Model generated invalid response');
+          return {
+            text: '[Model generated an invalid response. Please try again or use a different model.]',
+            tokens: null,
+            timings: {
+              elapsed_ms: elapsed,
+            },
+            invalid: true,
+          };
+        }
+
         return {
-          text: generatedText,
+          text: cleanedResponse,
           tokens: null,
           timings: {
             elapsed_ms: elapsed,
@@ -216,6 +256,8 @@ export class TransformersJsEngine extends BaseInferenceEngine {
       streaming: false, //// Limited streaming support
       batching: true,
       gpu: false, //// ONNX Runtime can use GPU but complex setup
+      fileBasedTemplates: true, // New capability
+      templateEngine: 'transformers',
       formats: ['ONNX', 'SafeTensors', 'PyTorch'],
       tasks: [
         'text-generation',

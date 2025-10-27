@@ -1,0 +1,17 @@
+{
+  "name": "bart",
+  "description": "BART encoder-decoder format for transformer models",
+  "engine": "transformers",
+  "patterns": ["bart"],
+  "priority": 10,
+  "roles": {
+    "system": "system",
+    "user": "user",
+    "assistant": "assistant"
+  },
+  "stopTokens": ["</s>"],
+  "template": {
+    "specialHandling": "bart_concatenate",
+    "message": "{{content}} "
+  }
+}

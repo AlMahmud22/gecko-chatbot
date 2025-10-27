@@ -15,14 +15,19 @@ export const useElectronApi = () => {
 
 export const ElectronApiProvider = ({ children }) => {
   const [api, setApi] = useState(() => window.electronAPI || mockElectronApi);
+  const [isApiReady, setIsApiReady] = useState(false);
   const isDevelopment = import.meta.env.DEV;
 
   useEffect(() => {
-    if (!isDevelopment) {
+    if (isDevelopment) {
+      // In development, API is ready immediately
+      setIsApiReady(true);
+    } else {
       // In production, check for the real Electron API
       const checkApiAvailability = () => {
         if (window.electronAPI) {
           setApi(window.electronAPI);
+          setIsApiReady(true);
         } else {
           // Retry after a short delay
           setTimeout(checkApiAvailability, 100);
@@ -35,7 +40,8 @@ export const ElectronApiProvider = ({ children }) => {
   const contextValue = {
     ...api,
     isDevelopment,
-    isMockApi: api === mockElectronApi
+    isMockApi: api === mockElectronApi,
+    isApiReady
   };
 
   return (

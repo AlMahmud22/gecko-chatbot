@@ -5,6 +5,7 @@
 
 import { BaseInferenceEngine } from './base-engine.js';
 import { LlamaChatTemplateRegistry } from '../chat-templates/llama-chat-template-registry.js';
+import { ResponseValidator } from '../response-validator.js';
 import path from 'path';
 
 let getLlama, LlamaChatSession;
@@ -110,24 +111,33 @@ export class LlamaCppEngine extends BaseInferenceEngine {
       //// Detect template type for this model
       const templateType = this.detectTemplateFromModelName(modelId);
       
-      //// Format prompt with appropriate chat template
-      const formattedPrompt = this.templateRegistry.formatPrompt(
+      //// Filter conversation history to remove any invalid responses
+      const validHistory = ResponseValidator.filterConversationHistory(options.conversationHistory || []);
+      
+      //// Format prompt with appropriate chat template and get stop strings
+      const { prompt: formattedPrompt, stopStrings } = this.templateRegistry.formatPrompt(
         prompt,
         templateType,
-        options.conversationHistory || []
+        validHistory
       );
       
       console.log(`Using template: ${templateType}`);
-      console.log(`Conversation history length: ${options.conversationHistory?.length || 0} messages`);
+      console.log(`Conversation history length: ${validHistory.length} messages (${(options.conversationHistory?.length || 0) - validHistory.length} filtered)`);
+      console.log(`Stop strings: ${stopStrings.join(', ')}`);
       console.log(`Formatted prompt (first 500 chars):\n${formattedPrompt.substring(0, 500)}...`);
 
       //// Generate response
       const response = await session.prompt(formattedPrompt, {
-        temperature: options.temperature || 0.7,
+        temperature: options.temperature || 0.8,  //// Increased from 0.7 for more variety
         topP: options.topP || 0.9,
         topK: options.topK || 40,
         maxTokens: options.maxTokens || 1000,
-        stopStrings: options.stopStrings || undefined,
+        //// Use template-specific stop strings, or user-provided ones
+        stopStrings: options.stopStrings || stopStrings,
+        //// Add minimum tokens to encourage meaningful responses
+        minTokens: 5, //// Encourage at least a few tokens
+        //// Add repetition penalty to prevent loops
+        repeatPenalty: options.repeatPenalty || 1.1,  //// Penalize repeated tokens
         
         //// Streaming callback (optional)
         onToken: options.onToken ? (chunk) => {
@@ -136,9 +146,40 @@ export class LlamaCppEngine extends BaseInferenceEngine {
       });
 
       const elapsed = Date.now() - startTime;
+      
+      console.log(`Raw model response (first 500 chars):\n${response.substring(0, 500)}`);
+
+      //// Clean the response to remove any template artifacts
+      const cleanedResponse = this.templateRegistry.cleanResponse(response, templateType);
+      
+      console.log(`Cleaned response (first 500 chars):\n${cleanedResponse.substring(0, 500)}`);
+
+      //// Validate the response
+      const validatedResponse = ResponseValidator.validateAndClean(cleanedResponse);
+      
+      console.log(`Validated response: ${validatedResponse ? 'VALID' : 'INVALID'}`);
+      
+      if (!validatedResponse) {
+        console.warn('Model generated invalid response after cleaning');
+        console.warn('Raw response length:', response.length);
+        console.warn('Cleaned response length:', cleanedResponse.length);
+        console.warn('Cleaned response:', cleanedResponse);
+        
+        //// Return a failure message - this won't be added to conversation history
+        //// thanks to validation in ChatPage.jsx
+        return {
+          text: ResponseValidator.getFailureMessage(cleanedResponse),
+          tokens: null,
+          timings: {
+            elapsed_ms: elapsed,
+            tokens_per_second: null,
+          },
+          invalid: true,
+        };
+      }
 
       return {
-        text: response,
+        text: validatedResponse,
         tokens: null, //// token count not directly available
         timings: {
           elapsed_ms: elapsed,

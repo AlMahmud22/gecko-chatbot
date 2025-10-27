@@ -4,6 +4,8 @@ import {
   getStorageFilePath,
   readJSON,
   writeJSON,
+  writeJSONSafe,
+  messageWAL,
   generateId,
   getTimestamp,
   successResponse,
@@ -67,7 +69,7 @@ export async function createChat(chatData) {
     };
     
     data.chats.push(newChat);
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
     return successResponse({ chat: newChat });
   } catch (err) {
@@ -96,7 +98,7 @@ export async function updateChat(chatId, updates) {
       updatedAt: getTimestamp(),
     };
     
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
     return successResponse({ chat: data.chats[chatIndex] });
   } catch (err) {
@@ -104,16 +106,10 @@ export async function updateChat(chatId, updates) {
   }
 }
 
-// Append message to chat
-export async function appendMessage(chatId, message) {
+// Append message to chat - with WAL buffering option
+export async function appendMessage(chatId, message, options = {}) {
   try {
-    const filePath = getStorageFilePath(CHATS_FILE);
-    const data = readJSON(filePath, { chats: [] });
-    
-    const chat = data.chats.find(c => c.id === chatId);
-    if (!chat) {
-      throw new Error('Chat not found');
-    }
+    const useWAL = options.useWAL || false; // Enable WAL for streaming
     
     const newMessage = {
       id: generateId(),
@@ -124,12 +120,65 @@ export async function appendMessage(chatId, message) {
       ...message,
     };
     
-    chat.messages.push(newMessage);
+    if (useWAL) {
+      // Buffer in WAL for streaming scenarios
+      messageWAL.buffer(chatId, newMessage);
+      return successResponse({ message: newMessage, buffered: true });
+    } else {
+      // Direct write for immediate persistence
+      const filePath = getStorageFilePath(CHATS_FILE);
+      const data = readJSON(filePath, { chats: [] });
+      
+      const chat = data.chats.find(c => c.id === chatId);
+      if (!chat) {
+        throw new Error('Chat not found');
+      }
+      
+      chat.messages.push(newMessage);
+      chat.updatedAt = getTimestamp();
+      
+      await writeJSONSafe(filePath, data); // Use safe atomic write
+      
+      return successResponse({ message: newMessage, chat });
+    }
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+// Flush WAL buffer for a specific chat (call after generation completes)
+export async function flushMessages(chatId) {
+  try {
+    await messageWAL.flush(chatId);
+    return successResponse({ flushed: true });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+// Update message content (for streaming updates)
+export async function updateMessage(chatId, messageId, content) {
+  try {
+    const filePath = getStorageFilePath(CHATS_FILE);
+    const data = readJSON(filePath, { chats: [] });
+    
+    const chat = data.chats.find(c => c.id === chatId);
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+    
+    const message = chat.messages.find(m => m.id === messageId);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+    
+    message.content = content;
+    message.updatedAt = getTimestamp();
     chat.updatedAt = getTimestamp();
     
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
-    return successResponse({ message: newMessage, chat });
+    return successResponse({ message, chat });
   } catch (err) {
     return errorResponse(err);
   }
@@ -154,7 +203,7 @@ export async function deleteMessage(chatId, messageId) {
     }
     
     chat.updatedAt = getTimestamp();
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
     return successResponse({ deleted: true });
   } catch (err) {
@@ -175,7 +224,7 @@ export async function deleteChat(chatId) {
       throw new Error('Chat not found');
     }
     
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
     return successResponse({ deleted: true });
   } catch (err) {
@@ -197,7 +246,7 @@ export async function clearChatMessages(chatId) {
     chat.messages = [];
     chat.updatedAt = getTimestamp();
     
-    writeJSON(filePath, data);
+    await writeJSONSafe(filePath, data); // Use safe write
     
     return successResponse({ chat });
   } catch (err) {

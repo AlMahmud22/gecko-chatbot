@@ -31,6 +31,18 @@
   ::-webkit-scrollbar-thumb {
     @apply bg-neutral-700 rounded-full hover:bg-neutral-600;
   }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-[#1a1a1a];
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-[#3a3a3a] rounded hover:bg-[#4a4a4a];
+  }
 }
 
 @layer components {
