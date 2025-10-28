@@ -8,6 +8,12 @@ npm-debug.log
 package-lock.json
 yarn.lock
 
+# Setup file
+*.exe
+*.dmg
+*.zip
+*.deb
+*.AppImage
 # Model binaries
 *.gguf
 *.bin

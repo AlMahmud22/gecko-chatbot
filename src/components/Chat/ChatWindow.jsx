@@ -1,15 +1,23 @@
 import ChatMessage from './ChatMessage';
 import ThinkingIndicator from './ThinkingIndicator';
+import { useEffect, useRef } from 'react';
 
 const ChatWindow = ({ messages, isGenerating }) => {
+  const messagesEndRef = useRef(null);
+  
+  // Auto-scroll to bottom when messages change or when generating
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isGenerating]);
+  
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
         {messages && messages.length > 0 ? (
           <div className="divide-y divide-[#2a2a2a]">
-            {messages.map((msg, index) => (
+            {messages.map((msg) => (
               <ChatMessage
-                key={index}
+                key={msg.id || `${msg.role}-${msg.timestamp}`}
                 role={msg.role}
                 content={msg.content}
                 model={msg.model}
@@ -17,13 +25,15 @@ const ChatWindow = ({ messages, isGenerating }) => {
               />
             ))}
             {isGenerating && <ThinkingIndicator />}
+            {/* Invisible element to scroll to */}
+            <div ref={messagesEndRef} />
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center p-8 rounded-lg">
               <div className="flex justify-center mb-4">
                 <img 
-                  src="/gecko.png" 
+                  src="./gecko.png" 
                   alt="Gecko" 
                   className="w-20 h-20 object-contain"
                 />

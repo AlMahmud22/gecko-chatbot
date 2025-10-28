@@ -10,14 +10,14 @@ import {
   CheckIcon,
 } from '@heroicons/react/24/outline';
 import { useElectronApi } from '../../contexts/ElectronApiContext';
+import { useProfile } from '../../contexts/ProfileContext';
 import ProfileModal from './ProfileModal';
 import ConfirmDialog from '../Common/ConfirmDialog';
 
 function ProfileMenu({ expanded, onInteraction }) {
   const { isApiReady } = useElectronApi();
+  const { currentProfile, profiles, switchProfile, refreshProfiles } = useProfile();
   const [isOpen, setIsOpen] = useState(false);
-  const [profiles, setProfiles] = useState([]);
-  const [currentProfile, setCurrentProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
@@ -40,75 +40,15 @@ function ProfileMenu({ expanded, onInteraction }) {
     }
   }, [isOpen]);
 
-  // Load profiles on mount
-  useEffect(() => {
-    console.log('ProfileMenu useEffect triggered, isApiReady:', isApiReady);
-    if (isApiReady) {
-      loadProfiles();
-    }
-  }, [isApiReady]);
-
-  const loadProfiles = async () => {
-    if (!isApiReady || !window.electronAPI) return;
-    
-    try {
-      setLoading(true);
-      console.log('Loading profiles...');
-      const result = await window.electronAPI.storage.profiles.getAll();
-      console.log('GetAll result:', result);
-      
-      const profileList = result?.profiles || [];
-      console.log('Profile list:', profileList);
-      
-      // Ensure 'default' profile exists
-      if (profileList.length === 0) {
-        console.log('No profiles found, creating default profile...');
-        await createDefaultProfile();
-        return;
-      }
-      
-      setProfiles(profileList);
-      
-      // Load current profile from localStorage or use first profile
-      const savedProfileId = localStorage.getItem('currentProfileId');
-      console.log('Saved profile ID from localStorage:', savedProfileId);
-      
-      const current = profileList.find(p => p.id === savedProfileId) || profileList[0];
-      console.log('Current profile:', current);
-      
-      setCurrentProfile(current);
-      localStorage.setItem('currentProfileId', current.id);
-    } catch (err) {
-      console.error('Failed to load profiles:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createDefaultProfile = async () => {
-    try {
-      const result = await window.electronAPI.storage.profiles.create({
-        name: 'Guest',
-        description: 'Default profile',
-        isDefault: true,
-      });
-      
-      if (result.success && result.profile) {
-        setProfiles([result.profile]);
-        setCurrentProfile(result.profile);
-        localStorage.setItem('currentProfileId', result.profile.id);
-      }
-    } catch (err) {
-      console.error('Failed to create default profile:', err);
-    }
-  };
-
   const handleSelectProfile = (profile) => {
-    setCurrentProfile(profile);
-    localStorage.setItem('currentProfileId', profile.id);
+    console.log('[ProfileMenu] Switching to profile:', profile.id);
+    
+    // Use context's switchProfile (which dispatches events)
+    switchProfile(profile);
     setIsOpen(false);
-    // Reload page to apply profile settings
-    window.location.reload();
+    
+    // NO MORE window.location.reload()!
+    // Other components will listen to 'profileChanged' event
   };
 
   const handleCreateProfile = () => {
@@ -137,16 +77,15 @@ function ProfileMenu({ expanded, onInteraction }) {
     try {
       await window.electronAPI.storage.profiles.delete(profileToDelete.id);
       
-      // If deleting current profile, switch to another
+      // Refresh profiles list
+      await refreshProfiles();
+      
+      // If deleting current profile, ProfileContext will handle switching to another
       if (currentProfile?.id === profileToDelete.id) {
         const remainingProfiles = profiles.filter(p => p.id !== profileToDelete.id);
         if (remainingProfiles.length > 0) {
           handleSelectProfile(remainingProfiles[0]);
-        } else {
-          await createDefaultProfile();
         }
-      } else {
-        loadProfiles();
       }
     } catch (err) {
       console.error('Failed to delete profile:', err);
@@ -168,12 +107,14 @@ function ProfileMenu({ expanded, onInteraction }) {
         console.log('Create result:', result);
         
         if (result.success) {
-          console.log('Profile created successfully, reloading profiles...');
-          await loadProfiles();
-          alert('Profile created successfully!');
+          console.log('Profile created successfully, refreshing profiles...');
+          // Use context's refreshProfiles
+          await refreshProfiles();
+          setShowModal(false);
+          // Don't show alert, just close modal smoothly
         } else {
           console.error('Profile creation failed:', result.error);
-          alert('Failed to create profile: ' + result.error);
+          throw new Error(result.error || 'Failed to create profile');
         }
       } else if (modalMode === 'edit' && editingProfile) {
         console.log('Updating profile:', editingProfile.id);
@@ -184,15 +125,16 @@ function ProfileMenu({ expanded, onInteraction }) {
         console.log('Update result:', result);
         
         if (result.success) {
-          console.log('Profile updated successfully, reloading profiles...');
-          await loadProfiles();
-          alert('Profile updated successfully!');
+          console.log('Profile updated successfully, refreshing profiles...');
+          // Use context's refreshProfiles
+          await refreshProfiles();
+          setShowModal(false);
+          // Don't show alert, just close modal smoothly
         } else {
           console.error('Profile update failed:', result.error);
-          alert('Failed to update profile: ' + result.error);
+          throw new Error(result.error || 'Failed to update profile');
         }
       }
-      setShowModal(false);
     } catch (err) {
       console.error('Failed to save profile:', err);
       throw err;

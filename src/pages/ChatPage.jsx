@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ChatTab from '../components/Chat/ChatTab';
 import { ElectronApiContext } from '../contexts/ElectronApiContext';
+import { useProfile } from '../contexts/ProfileContext';
 import './ChatPage.css';
 
 function ChatPage() {
@@ -10,6 +11,7 @@ function ChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const electronApi = useContext(ElectronApiContext);
+  const { currentProfile } = useProfile();
   const isDevelopment = electronApi?.isDevelopment || false;
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -39,6 +41,7 @@ function ChatPage() {
   }, [isDevelopment, electronApi]);
 
   ////// Load existing chat if chatId is provided in location state
+  ////// FIXED: Remove messages.length from dependencies to prevent infinite loops
   useEffect(() => {
     const loadChat = async () => {
       if (!electronApi || !window.electronAPI) return;
@@ -56,35 +59,52 @@ function ChatPage() {
       
       // CRITICAL FIX: Don't reload chat if we already have the same chatId loaded
       // This prevents losing messages when modelId changes but chatId stays the same
-      if (chatId && chatId === currentChatId && messages.length > 0) {
+      if (chatId && chatId === currentChatId) {
         console.log('Chat already loaded, skipping reload to preserve messages');
         return;
       }
       
       if (chatId) {
         try {
+          console.log('[ChatPage] Loading chat:', chatId);
           const chatResult = await window.electronAPI.storage.chats.get(chatId);
+          console.log('[ChatPage] Chat result:', chatResult);
+          
           const chat = chatResult?.chat || chatResult;
+          console.log('[ChatPage] Extracted chat:', {
+            id: chat?.id,
+            title: chat?.title,
+            messagesCount: chat?.messages?.length,
+            messages: chat?.messages?.map(m => ({ role: m.role, contentPreview: m.content?.substring(0, 50) }))
+          });
           
           if (chat && chat.messages) {
             // Validate messages array contains both user and assistant messages
             const hasUser = chat.messages.some(m => m.role === 'user');
             const hasAssistant = chat.messages.some(m => m.role === 'assistant');
             
+            console.log('[ChatPage] Message validation:', {
+              totalMessages: chat.messages.length,
+              hasUser,
+              hasAssistant,
+              roles: chat.messages.map(m => m.role)
+            });
+            
             if (chat.messages.length > 0 && !hasAssistant && hasUser) {
-              console.warn('VALIDATION: Chat has user messages but no assistant responses - possible persistence issue');
+              console.warn('[ChatPage] VALIDATION: Chat has user messages but no assistant responses - possible persistence issue');
             }
             
             // Ensure all messages have required fields
             const validatedMessages = chat.messages.map(msg => ({
               ...msg,
-              id: msg.id || `msg-${Date.now()}-${Math.random()}`,
+              id: msg.id || `msg-${Date.now()}-${Math.random()}`,  // Ensure each message has an ID
               role: msg.role || 'user',
               content: msg.content || '',
               model: msg.model || 'unknown',
               timestamp: msg.timestamp || new Date().toISOString()
             }));
             
+            console.log('[ChatPage] Setting validated messages:', validatedMessages.length);
             setMessages(validatedMessages);
             setCurrentChatId(chatId);
             
@@ -108,7 +128,8 @@ function ChatPage() {
     };
     
     loadChat();
-  }, [electronApi, location.state?.chatId, location.state?.newChat, modelId, navigate, currentChatId, messages.length]);
+    // CRITICAL FIX: Removed messages.length from dependencies - it was causing infinite loops!
+  }, [electronApi, location.state?.chatId, location.state?.newChat, modelId, navigate, currentChatId]);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -214,6 +235,25 @@ function ChatPage() {
     };
   }, [selectedModel]);
 
+  ////// Listen for profile changes to clear current chat
+  useEffect(() => {
+    const handleProfileChanged = (event) => {
+      console.log('[ChatPage] Profile changed event received:', event.detail);
+      // Clear current chat and messages when profile changes
+      setMessages([]);
+      setCurrentChatId(null);
+      setError(null);
+      // Navigate to fresh chat page
+      navigate('/chat', { replace: true, state: { newChat: true } });
+    };
+
+    window.addEventListener('profileChanged', handleProfileChanged);
+    
+    return () => {
+      window.removeEventListener('profileChanged', handleProfileChanged);
+    };
+  }, [navigate]);
+
   const handleStop = async () => {
     if (currentGenerationId) {
       // Immediately clear UI state - don't wait for backend
@@ -236,9 +276,15 @@ function ChatPage() {
   const handleSend = async (message) => {
     if (!message.trim() || !selectedModel) return;
 
-    const userMessage = { role: 'user', content: message, timestamp: new Date().toISOString() };
+    const userMessage = { 
+      role: 'user', 
+      content: message, 
+      timestamp: new Date().toISOString(),
+      id: `msg-${Date.now()}-${Math.random()}`  // Add unique ID for React keys
+    };
+    
+    //// CRITICAL FIX: Update messages state IMMEDIATELY for real-time UI update
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
     setLoading(true);
     setError(null);
     
@@ -253,17 +299,28 @@ function ChatPage() {
       const generationId = `${selectedModel.id}-${Date.now()}`;
       setCurrentGenerationId(generationId);
 
+      ////// Track the chat ID to use for saving messages
+      ////// This will be either the existing currentChatId or the newly created one
+      let chatIdForSaving = currentChatId;
+
       ////// Save user message to chat storage
       if (currentChatId) {
         try {
+          console.log('[ChatPage] Saving user message to chat:', currentChatId);
+          console.log('[ChatPage] User message:', userMessage);
+          
           const saveResult = await window.electronAPI.storage.chats.appendMessage(currentChatId, userMessage);
-          console.log('User message saved successfully:', saveResult);
+          console.log('[ChatPage] User message save result:', saveResult);
           
           if (!saveResult.success) {
-            console.error('User message save returned non-success:', saveResult);
+            console.error('[ChatPage] User message save returned non-success:', saveResult);
+            throw new Error(saveResult.error || 'Failed to save user message');
           }
+          
+          console.log('[ChatPage] User message saved successfully');
         } catch (saveErr) {
-          console.error('Failed to save user message:', saveErr);
+          console.error('[ChatPage] Failed to save user message:', saveErr);
+          console.error('[ChatPage] User message save error stack:', saveErr.stack);
           // Continue with inference even if save fails
         }
       } else {
@@ -273,26 +330,55 @@ function ChatPage() {
         const titleWords = words.slice(0, 20).join(' ');
         const title = titleWords.length < message.length ? titleWords + '...' : titleWords;
         
-        const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
+        // Use currentProfile from context instead of localStorage
+        const profileId = currentProfile?.id || 'default';
+        
+        console.log('[ChatPage] Creating new chat with:', {
+          title,
+          modelId: selectedModel.id || selectedModel,
+          profileId: profileId,
+          messagesCount: 1
+        });
         
         try {
           const newChatResult = await window.electronAPI.storage.chats.create({
-            profileId: currentProfileId,
+            profileId: profileId,
             title: title,
             modelId: selectedModel.id || selectedModel,
             messages: [userMessage]
           });
           
+          console.log('[ChatPage] Create chat result:', newChatResult);
+          
           if (newChatResult.success && newChatResult.chat) {
-            setCurrentChatId(newChatResult.chat.id);
-            console.log('New chat created successfully:', newChatResult.chat.id);
+            const newChatId = newChatResult.chat.id;
+            setCurrentChatId(newChatId);
+            
+            //// CRITICAL FIX: Store the new chat ID for saving the assistant response
+            chatIdForSaving = newChatId;
+            
+            console.log('[ChatPage] New chat created successfully:', newChatId);
+            console.log('[ChatPage] chatIdForSaving set to:', chatIdForSaving);
+            
             //// Dispatch event to refresh chat history in sidebar
-            window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: newChatResult.chat.id } }));
+            window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: newChatId } }));
+            
+            //// CRITICAL: Force immediate sidebar refresh
+            window.dispatchEvent(new CustomEvent('refreshChats'));
+            
+            //// CRITICAL FIX: Navigate to the newly created chat so it appears in the URL
+            //// This ensures the chat is properly loaded and accessible
+            navigate(`/chat/${encodeURIComponent(selectedModel.id || selectedModel)}`, { 
+              replace: false,  // Don't replace history - allows back navigation
+              state: { chatId: newChatId } 
+            });
           } else {
-            console.error('Chat creation returned non-success result:', newChatResult);
+            console.error('[ChatPage] Chat creation returned non-success result:', newChatResult);
+            throw new Error(newChatResult.error || 'Failed to create chat');
           }
         } catch (createErr) {
-          console.error('Failed to create new chat:', createErr);
+          console.error('[ChatPage] Failed to create new chat:', createErr);
+          console.error('[ChatPage] Create error stack:', createErr.stack);
           // Continue with inference even if chat creation fails
         }
       }
@@ -372,33 +458,53 @@ function ChatPage() {
           role: 'assistant', 
           content: responseText,
           model: selectedModel?.name || selectedModel?.id || 'unknown', // Attach model metadata
-          timestamp: new Date().toISOString() 
+          timestamp: new Date().toISOString(),
+          id: `msg-${Date.now()}-${Math.random()}`  // Add unique ID for React keys
         };
         
+        //// CRITICAL FIX: Update UI state IMMEDIATELY before saving to storage
+        //// This ensures the user sees the response instantly
         setMessages((prev) => [...prev, botMessage]);
         
         ////// Save assistant message to chat storage with retry logic
-        if (currentChatId) {
+        ////// CRITICAL FIX: Use chatIdForSaving which is set before inference starts
+        if (chatIdForSaving) {
+          console.log('[ChatPage] Saving assistant message to chatId:', chatIdForSaving);
+          
           let saveAttempts = 0;
           const maxAttempts = 3;
           let saved = false;
           
           while (saveAttempts < maxAttempts && !saved) {
             try {
-              const saveResult = await window.electronAPI.storage.chats.appendMessage(currentChatId, botMessage);
-              console.log('Assistant message saved successfully:', saveResult);
+              console.log(`[ChatPage] Attempting to save assistant message (attempt ${saveAttempts + 1}/${maxAttempts})`);
+              console.log('[ChatPage] Assistant message:', {
+                id: botMessage.id,
+                role: botMessage.role,
+                contentLength: botMessage.content?.length,
+                model: botMessage.model
+              });
+              console.log('[ChatPage] Target chatId:', chatIdForSaving);
+              
+              const saveResult = await window.electronAPI.storage.chats.appendMessage(chatIdForSaving, botMessage);
+              console.log('[ChatPage] Assistant message save result:', saveResult);
               
               if (!saveResult.success) {
                 throw new Error(saveResult.error || 'Save returned non-success');
               }
               
               saved = true;
+              console.log('[ChatPage] Assistant message saved successfully');
               
-              //// Dispatch event to refresh chat history in sidebar
-              window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: currentChatId } }));
+              //// Dispatch event to refresh chat history in sidebar - IMMEDIATE UPDATE
+              window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: chatIdForSaving } }));
+              
+              //// Also trigger a refresh event for any other components listening
+              window.dispatchEvent(new CustomEvent('refreshChats'));
             } catch (saveErr) {
               saveAttempts++;
-              console.error(`Failed to save assistant message (attempt ${saveAttempts}/${maxAttempts}):`, saveErr);
+              console.error(`[ChatPage] Failed to save assistant message (attempt ${saveAttempts}/${maxAttempts}):`, saveErr);
+              console.error('[ChatPage] Save error stack:', saveErr.stack);
               
               if (saveAttempts < maxAttempts) {
                 // Wait before retry
@@ -410,6 +516,11 @@ function ChatPage() {
               }
             }
           }
+        } else {
+          console.error('[ChatPage] CRITICAL: chatIdForSaving is null - cannot save assistant message!');
+          console.error('[ChatPage] currentChatId:', currentChatId);
+          console.error('[ChatPage] This means chat creation failed or chat ID was not set properly');
+          setError('Warning: Chat was not created properly. Your response may not be saved.');
         }
       } else {
         console.error('Empty or invalid response received:', {

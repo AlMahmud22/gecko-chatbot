@@ -257,16 +257,23 @@ ipcMain.handle('run-inference', async (event, { modelId, message, config }) => {
   try {
     // Helper to send progress logs to frontend
     const sendLog = (log) => {
-      event.sender.send('inference-log', log);
+      if (event.sender && !event.sender.isDestroyed()) {
+        event.sender.send('inference-log', log);
+      }
     };
+    
+    // Send initial log
+    sendLog('🚀 Starting inference...');
+    sendLog(`📦 Model: ${modelId}`);
     
     // Intercept console.log during inference
     const originalLog = console.log;
-    const logBuffer = [];
+    const originalError = console.error;
+    const originalWarn = console.warn;
     
     console.log = (...args) => {
       const logMessage = args.join(' ');
-      // Filter and send relevant logs to frontend
+      // Filter and send relevant logs to frontend with better formatting
       if (
         logMessage.includes('Loading model:') ||
         logMessage.includes('Model loaded:') ||
@@ -276,13 +283,30 @@ ipcMain.handle('run-inference', async (event, { modelId, message, config }) => {
         logMessage.includes('Running inference') ||
         logMessage.includes('TemplateRegistry') ||
         logMessage.includes('Matched') ||
-        logMessage.includes('control-looking token') ||
-        logMessage.includes('special_eos_id')
+        logMessage.includes('Generating response') ||
+        logMessage.includes('Generation parameters')
       ) {
-        sendLog(logMessage);
+        // Clean up and format the log message
+        const cleanLog = logMessage
+          .replace(/^\[.*?\]\s*/, '') // Remove timestamp prefixes
+          .replace(/\s+/g, ' ')       // Normalize whitespace
+          .trim();
+        
+        if (cleanLog.length > 0) {
+          sendLog(cleanLog);
+        }
       }
       // Still call original console.log
       originalLog(...args);
+    };
+    
+    console.warn = (...args) => {
+      const logMessage = args.join(' ');
+      if (logMessage.includes('control-looking token') || logMessage.includes('special_eos_id')) {
+        // These are informational warnings from llama.cpp - send to UI
+        sendLog(`⚠️ ${logMessage.substring(0, 80)}`);
+      }
+      originalWarn(...args);
     };
     
     // Merge incoming config with stored settings
@@ -290,13 +314,23 @@ ipcMain.handle('run-inference', async (event, { modelId, message, config }) => {
     const storedConfig = await getInferenceConfig();
     const inferenceConfig = { ...storedConfig, ...config };
     
+    sendLog('⚙️ Configuration validated');
+    sendLog('🔄 Processing...');
+    
     const result = await runInference(modelId, message, inferenceConfig);
     
-    // Restore original console.log
+    // Restore original console functions
     console.log = originalLog;
+    console.warn = originalWarn;
+    console.error = originalError;
+    
+    if (result.success) {
+      sendLog('✅ Response generated successfully');
+    }
     
     return result;
   } catch (err) {
+    console.error('Inference error:', err);
     return { success: false, error: err.message };
   }
 });

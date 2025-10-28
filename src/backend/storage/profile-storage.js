@@ -48,12 +48,12 @@ export async function getProfile(profileId) {
 // Create new profile
 export async function createProfile(profileData) {
   try {
-    console.log('createProfile - Input data:', profileData);
+    console.log('[ProfileStorage] createProfile - Input data:', JSON.stringify(profileData, null, 2));
     const filePath = getStorageFilePath(PROFILES_FILE);
-    console.log('createProfile - File path:', filePath);
+    console.log('[ProfileStorage] createProfile - File path:', filePath);
     
     const data = readJSON(filePath, { profiles: [] });
-    console.log('createProfile - Current data:', data);
+    console.log('[ProfileStorage] createProfile - Current data:', JSON.stringify(data, null, 2));
     
     const newProfile = {
       id: generateId(),
@@ -66,17 +66,29 @@ export async function createProfile(profileData) {
       ...profileData,
     };
     
-    console.log('createProfile - New profile:', newProfile);
+    console.log('[ProfileStorage] createProfile - New profile object:', JSON.stringify(newProfile, null, 2));
     
     data.profiles.push(newProfile);
-    console.log('createProfile - Updated data:', data);
+    console.log('[ProfileStorage] createProfile - Data after push (profiles count):', data.profiles.length);
     
-    const writeSuccess = await writeJSONSafe(filePath, data); // Use safe write
-    console.log('createProfile - Write success:', writeSuccess);
+    console.log('[ProfileStorage] createProfile - Calling writeJSONSafe...');
+    const writeSuccess = await writeJSONSafe(filePath, data);
+    console.log('[ProfileStorage] createProfile - Write completed, success:', writeSuccess);
+    
+    // Verify the write by reading back
+    const verifyData = readJSON(filePath, { profiles: [] });
+    console.log('[ProfileStorage] createProfile - Verification read (profiles count):', verifyData.profiles.length);
+    const profileExists = verifyData.profiles.some(p => p.id === newProfile.id);
+    console.log('[ProfileStorage] createProfile - Profile exists in file:', profileExists);
+    
+    if (!profileExists) {
+      throw new Error('Profile was not saved to file - verification failed');
+    }
     
     return successResponse({ profile: newProfile });
   } catch (err) {
-    console.error('createProfile - Error:', err);
+    console.error('[ProfileStorage] createProfile - Error:', err);
+    console.error('[ProfileStorage] createProfile - Error stack:', err.stack);
     return errorResponse(err);
   }
 }

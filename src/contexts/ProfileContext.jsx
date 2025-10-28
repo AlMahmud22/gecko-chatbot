@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useElectronApi } from './ElectronApiContext';
 
 const ProfileContext = createContext(null);
@@ -9,11 +9,8 @@ export function ProfileProvider({ children }) {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadProfiles();
-  }, [isApiReady]);
-
-  const loadProfiles = async () => {
+  // Memoize loadProfiles to prevent unnecessary re-creations
+  const loadProfiles = useCallback(async () => {
     if (!isApiReady || !window.electronAPI) {
       setLoading(false);
       return;
@@ -50,16 +47,29 @@ export function ProfileProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isApiReady]);
 
-  const switchProfile = (profile) => {
+  useEffect(() => {
+    loadProfiles();
+  }, [loadProfiles]);
+
+  // Switch profile with proper event dispatch - NO PAGE RELOAD!
+  const switchProfile = useCallback((profile) => {
+    console.log('[ProfileContext] Switching to profile:', profile.id);
     setCurrentProfile(profile);
     localStorage.setItem('currentProfileId', profile.id);
-  };
+    
+    // Dispatch custom event so other components can react
+    window.dispatchEvent(new CustomEvent('profileChanged', { 
+      detail: { profileId: profile.id, profile } 
+    }));
+  }, []);
 
-  const refreshProfiles = async () => {
+  // Refresh profiles list after creation/update/deletion
+  const refreshProfiles = useCallback(async () => {
+    console.log('[ProfileContext] Refreshing profiles...');
     await loadProfiles();
-  };
+  }, [loadProfiles]);
 
   return (
     <ProfileContext.Provider 

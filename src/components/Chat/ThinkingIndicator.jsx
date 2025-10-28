@@ -3,33 +3,41 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 function ThinkingIndicator() {
   const [logs, setLogs] = useState([]);
+  const [isListenerActive, setIsListenerActive] = useState(false);
 
   useEffect(() => {
     // Listen for inference logs from backend
     const handleLog = (event, log) => {
+      console.log('[ThinkingIndicator] Received log:', log);
       setLogs((prev) => {
         // Filter out consecutive duplicates
         if (prev.length > 0 && prev[prev.length - 1] === log) {
           return prev; // Skip duplicate
         }
         const newLogs = [...prev, log];
-        // Keep only last 8 logs
-        return newLogs.slice(-8);
+        // Keep only last 10 logs for better readability
+        return newLogs.slice(-10);
       });
     };
 
     // Setup listener
     if (window.electronAPI && window.electron) {
+      console.log('[ThinkingIndicator] Setting up inference-log listener');
       window.electron.ipcRenderer.on('inference-log', handleLog);
+      setIsListenerActive(true);
+    } else {
+      console.warn('[ThinkingIndicator] electron or electronAPI not available');
     }
 
     return () => {
       // Cleanup listener
       if (window.electronAPI && window.electron) {
+        console.log('[ThinkingIndicator] Removing inference-log listener');
         window.electron.ipcRenderer.removeListener('inference-log', handleLog);
       }
       // Clear logs on unmount
       setLogs([]);
+      setIsListenerActive(false);
     };
   }, []);
 
@@ -57,27 +65,34 @@ function ThinkingIndicator() {
           </div>
           
           <span className="text-gray-300 font-medium">
-            Processing...
+            {logs.length > 0 ? 'Processing...' : 'Generating response...'}
           </span>
         </div>
         
-        {/* Real-time logs */}
+        {/* Real-time logs display */}
         {logs.length > 0 && (
-          <div className="space-y-1 font-mono text-xs">
+          <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
             <AnimatePresence mode="popLayout">
               {logs.map((log, index) => (
                 <motion.div
                   key={`${index}-${log}`}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-gray-400 truncate"
+                  initial={{ opacity: 0, x: -20, height: 0 }}
+                  animate={{ opacity: 1, x: 0, height: 'auto' }}
+                  exit={{ opacity: 0, x: 20, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-gray-400 text-sm px-3 py-2 bg-[#252525] rounded-lg border border-[#333333]"
                 >
                   {log}
                 </motion.div>
               ))}
             </AnimatePresence>
+          </div>
+        )}
+        
+        {/* Debug info - remove in production */}
+        {!isListenerActive && (
+          <div className="mt-2 text-xs text-red-400">
+            ⚠️ Listener not active
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   ChatBubbleLeftIcon,
@@ -13,12 +13,14 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useElectronApi } from "../../contexts/ElectronApiContext";
+import { useProfile } from "../../contexts/ProfileContext";
 import ProfileMenu from "../Profile/ProfileMenu";
 
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isApiReady } = useElectronApi();
+  const { currentProfile } = useProfile();
   const [expanded, setExpanded] = useState(false);
   const [showChats, setShowChats] = useState(true);
   const [chats, setChats] = useState([]);
@@ -27,39 +29,59 @@ function Sidebar() {
   const [editingChatId, setEditingChatId] = useState(null);
   const [editingTitle, setEditingTitle] = useState('');
 
-  ////// Load recent chats from storage on mount
-  useEffect(() => {
-    const loadChats = async () => {
-      if (!isApiReady) return;
-      
-      try {
-        setLoading(true);
-        ////// Get current profile ID
-        const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
-        ////// Get all chats for current profile
-        const result = await window.electronAPI.storage.chats.getAll(currentProfileId);
-        const chatList = result?.chats || result || [];
-        ////// Sort by last updated and take top 10
-        const sortedChats = Array.isArray(chatList) 
-          ? chatList.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 10)
-          : [];
-        setChats(sortedChats);
-      } catch (err) {
-        console.error('Failed to load chats:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadChats();
+  ////// Memoize loadChats to use as stable reference
+  const loadChats = useCallback(async () => {
+    if (!isApiReady || !currentProfile) return;
     
-    // Reload chats when profile changes
-    const handleStorageChange = () => {
+    try {
+      setLoading(true);
+      console.log('[Sidebar] Loading chats for profile:', currentProfile.id);
+      
+      ////// Get all chats for current profile
+      const result = await window.electronAPI.storage.chats.getAll(currentProfile.id);
+      const chatList = result?.chats || result || [];
+      
+      ////// Sort by last updated and take top 10
+      const sortedChats = Array.isArray(chatList) 
+        ? chatList.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 10)
+        : [];
+      
+      console.log('[Sidebar] Loaded chats:', sortedChats.length);
+      setChats(sortedChats);
+    } catch (err) {
+      console.error('Failed to load chats:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [isApiReady, currentProfile]);
+
+  ////// Load chats when profile changes or component mounts
+  useEffect(() => {
+    loadChats();
+  }, [loadChats]);
+
+  ////// Listen for profile changes to refresh chats
+  useEffect(() => {
+    const handleProfileChanged = (event) => {
+      console.log('[Sidebar] Profile changed event received:', event.detail);
+      // Clear chats immediately, then reload
+      setChats([]);
+      setActiveChatId(null);
       loadChats();
     };
     
-    // Listen for chat updates from ChatPage
+    window.addEventListener('profileChanged', handleProfileChanged);
+    
+    return () => {
+      window.removeEventListener('profileChanged', handleProfileChanged);
+    };
+  }, [loadChats]);
+
+  ////// Listen for chat updates from ChatPage
+  useEffect(() => {
     const handleChatUpdated = (event) => {
+      console.log('[Sidebar] Chat updated event received:', event.detail);
+      // Immediately reload chats to show new/updated chat
       loadChats();
       // Set the active chat ID when a chat is updated
       if (event.detail?.chatId) {
@@ -67,14 +89,19 @@ function Sidebar() {
       }
     };
     
-    window.addEventListener('storage', handleStorageChange);
+    const handleRefreshChats = () => {
+      console.log('[Sidebar] Manual chat refresh requested');
+      loadChats();
+    };
+    
     window.addEventListener('chatUpdated', handleChatUpdated);
+    window.addEventListener('refreshChats', handleRefreshChats);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('chatUpdated', handleChatUpdated);
+      window.removeEventListener('refreshChats', handleRefreshChats);
     };
-  }, [isApiReady]);
+  }, [loadChats]);
 
   ////// Track active chat from URL
   useEffect(() => {
@@ -101,26 +128,20 @@ function Sidebar() {
   };
 
   ////// Handle chat rename
-  const handleRenameChat = async (chatId, newTitle) => {
+  const handleRenameChat = useCallback(async (chatId, newTitle) => {
     try {
       await window.electronAPI.storage.chats.update(chatId, { title: newTitle });
       // Refresh chat list
-      const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
-      const result = await window.electronAPI.storage.chats.getAll(currentProfileId);
-      const chatList = result?.chats || result || [];
-      const sortedChats = Array.isArray(chatList) 
-        ? chatList.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 10)
-        : [];
-      setChats(sortedChats);
+      await loadChats();
       setEditingChatId(null);
       setEditingTitle('');
     } catch (err) {
       console.error('Failed to rename chat:', err);
     }
-  };
+  }, [loadChats]);
 
   ////// Handle chat delete
-  const handleDeleteChat = async (chatId) => {
+  const handleDeleteChat = useCallback(async (chatId) => {
     if (!window.confirm('Are you sure you want to delete this chat?')) {
       return;
     }
@@ -128,13 +149,7 @@ function Sidebar() {
     try {
       await window.electronAPI.storage.chats.delete(chatId);
       // Refresh chat list
-      const currentProfileId = localStorage.getItem('currentProfileId') || 'default';
-      const result = await window.electronAPI.storage.chats.getAll(currentProfileId);
-      const chatList = result?.chats || result || [];
-      const sortedChats = Array.isArray(chatList) 
-        ? chatList.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, 10)
-        : [];
-      setChats(sortedChats);
+      await loadChats();
       
       // If deleted chat was active, clear active chat
       if (activeChatId === chatId) {
@@ -144,7 +159,7 @@ function Sidebar() {
     } catch (err) {
       console.error('Failed to delete chat:', err);
     }
-  };
+  }, [loadChats, activeChatId, navigate]);
 
   ////// Handle starting edit
   const startEditingChat = (chat) => {

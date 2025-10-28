@@ -1,31 +1,50 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HistoryList from '../components/History/HistoryList';
 import { ElectronApiContext } from '../contexts/ElectronApiContext';
+import { useProfile } from '../contexts/ProfileContext';
 
 function HistoryPage() {
   const { isApiReady } = useContext(ElectronApiContext);
+  const { currentProfile } = useProfile();
   const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!isApiReady) return;
+  ////// Memoize loadHistory to prevent unnecessary re-creations
+  const loadHistory = useCallback(async () => {
+    if (!isApiReady || !currentProfile) return;
 
-    const loadHistory = async () => {
-      try {
-        ////// Use new storage API to get all chats
-        const result = await window.electronAPI.storage.chats.getAll('default');
-        const chatHistory = result?.chats || result || [];
-        setHistory(Array.isArray(chatHistory) ? chatHistory : []);
-      } catch (err) {
-        console.error('Failed to load history:', err);
-        setError('Failed to load chat history.');
-      }
+    try {
+      console.log('[HistoryPage] Loading history for profile:', currentProfile.id);
+      ////// Use new storage API to get all chats for current profile
+      const result = await window.electronAPI.storage.chats.getAll(currentProfile.id);
+      const chatHistory = result?.chats || result || [];
+      setHistory(Array.isArray(chatHistory) ? chatHistory : []);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+      setError('Failed to load chat history.');
+    }
+  }, [isApiReady, currentProfile]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  ////// Listen for profile changes to refresh history
+  useEffect(() => {
+    const handleProfileChanged = (event) => {
+      console.log('[HistoryPage] Profile changed event received:', event.detail);
+      setHistory([]);
+      loadHistory();
     };
 
-    loadHistory();
-  }, [isApiReady]);
+    window.addEventListener('profileChanged', handleProfileChanged);
+    
+    return () => {
+      window.removeEventListener('profileChanged', handleProfileChanged);
+    };
+  }, [loadHistory]);
 
   const handleSelect = (chatId) => {
     const chat = history.find(c => c.id === chatId);

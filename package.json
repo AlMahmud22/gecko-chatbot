@@ -1,8 +1,8 @@
 {
   "name": "gecko-chatbot",
-  "version": "1.0.0",
-  "description": "Gecko Chatbot - Local AI Assistant",
-  "author": "Your Name",
+  "version": "1.1",
+  "description": "Gecko Chatbot - Local AI Assistant by Equator",
+  "author": "SADIK AL MAHMUD",
   "private": true,
   "type": "module",
   "main": "main.js",
@@ -10,6 +10,7 @@
     "dev": "cross-env NODE_ENV=development concurrently \"vite\" \"electron .\"",
     "build": "vite build",
     "start": "electron .",
+    "start:prod": "cross-env NODE_ENV=production electron .",
     "preview": "vite preview",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
@@ -32,7 +33,9 @@
     ],
     "win": {
       "target": ["nsis", "portable"],
-      "icon": "public/gecko.ico"
+      "icon": "public/gecko.ico",
+      "certificateFile": "builds/cert/gecko-selfsigned.pfx",
+      "certificatePassword": "Equators@123"
     },
     "mac": {
       "target": ["dmg", "zip"],

@@ -37,8 +37,11 @@ function ChatInput({ onSend, onStop, isGenerating }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (input.trim() && !isGenerating) {
-      onSend(input)
-      setInput('')
+      const messageToSend = input;
+      // Clear input IMMEDIATELY for better UX
+      setInput('');
+      // Then send the message
+      onSend(messageToSend);
     }
   }
 
