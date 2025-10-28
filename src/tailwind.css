@@ -15,16 +15,16 @@
 
 @layer components {
   .sidebar-link {
-    @apply flex items-center px-4 py-2 text-sm text-gray-400 hover:text-blue-400 hover:bg-neutral-800 rounded-md transition-colors;
+    @apply flex items-center px-4 py-2 text-sm text-gray-400 hover:text-green-500 hover:bg-neutral-800 rounded-md transition-colors;
   }
 
   .sidebar-link.active {
-    @apply bg-blue-600 text-white;
+    @apply bg-green-700 text-white;
   }
 
   .input-field {
     @apply w-full bg-neutral-800 border border-neutral-700 rounded px-4 py-2 text-sm 
-    focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-100;
+    focus:border-green-600 focus:ring-1 focus:ring-green-600 text-gray-100;
   }
 
   .btn {
@@ -33,7 +33,7 @@
   }
 
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+    @apply bg-green-700 text-white hover:bg-green-800 focus:ring-green-600;
   }
 
   .btn-secondary {
@@ -49,24 +49,35 @@
   }
 
   .tab-button.active {
-    @apply bg-neutral-800 text-blue-400 border-t border-x border-neutral-700;
+    @apply bg-neutral-800 text-green-500 border-t border-x border-neutral-700;
   }
 
   .tab-button:not(.active) {
-    @apply text-gray-400 hover:text-blue-300;
+    @apply text-gray-400 hover:text-green-400;
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - globally applied consistent style */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-neutral-900;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-neutral-700 rounded-full hover:bg-neutral-600;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }

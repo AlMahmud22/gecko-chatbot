@@ -1,4 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\logger-utils.js
+// Logger Utilities
 
 // ANSI color codes for terminal output
 export const colors = {

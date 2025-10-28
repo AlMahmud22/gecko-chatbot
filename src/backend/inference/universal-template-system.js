@@ -537,6 +537,56 @@ export class UniversalTemplateSystem {
   }
 
   /**
+   * Detect model family from filename only (simplified version for registry fallback)
+   * @param {string} modelName - Model filename
+   * @returns {string} Detected family name
+   */
+  detectModelFamily(modelName) {
+    const nameLower = modelName.toLowerCase();
+    let detectedFamily = null;
+    let highestPriority = -1;
+    
+    // Filename-based detection
+    for (const [familyName, family] of Object.entries(MODEL_FAMILIES)) {
+      for (const pattern of family.patterns) {
+        if (pattern.test(nameLower)) {
+          if (family.priority > highestPriority) {
+            detectedFamily = familyName;
+            highestPriority = family.priority;
+          }
+        }
+      }
+    }
+    
+    // Return detected family or 'unknown'
+    return detectedFamily || 'unknown';
+  }
+
+  /**
+   * Get template configuration for a detected family
+   * @param {string} familyName - Family name from detectModelFamily
+   * @returns {Object} Template configuration
+   */
+  getTemplate(familyName) {
+    const family = MODEL_FAMILIES[familyName];
+    if (!family) {
+      // Return chatml fallback
+      return {
+        name: 'chatml',
+        stopTokens: ['<|im_end|>', '<|im_start|>'],
+        roles: { system: 'system', user: 'user', assistant: 'assistant' }
+      };
+    }
+    
+    return {
+      name: family.template,
+      stopTokens: family.stopTokens,
+      roles: family.roles,
+      formatter: TEMPLATE_FORMATTERS[family.template]
+    };
+  }
+
+  /**
    * Detect model family and configuration from filename and metadata
    * @param {string} modelPath - Path to the model file
    * @param {string} modelName - Model filename

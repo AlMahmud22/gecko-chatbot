@@ -9,7 +9,7 @@ function SystemInfoDisplay({ systemInfo, loading, error, isDevelopment }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -86,8 +86,8 @@ function SystemInfoDisplay({ systemInfo, loading, error, isDevelopment }) {
             </p>
           </div>
           {isDevelopment && (
-            <div className="bg-blue-900/30 p-3 rounded-md text-sm mt-4">
-              <p className="text-blue-300 font-medium mb-1">Development Mode</p>
+            <div className="bg-green-950/30 p-3 rounded-md text-sm mt-4">
+              <p className="text-green-400 font-medium mb-1">Development Mode</p>
               <p className="text-gray-400">
                 The application is running in development mode.
                 {systemInfo?.isMock ? ' Using mock system data.' : ' Using real system data.'}

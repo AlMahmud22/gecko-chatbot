@@ -37,7 +37,7 @@ const FilterCheckbox = ({ label, value, checked, onChange, count }) => {
           type="checkbox" 
           checked={checked} 
           onChange={() => onChange(value)} 
-          className="mr-2 bg-[#2a2a2a] border-[#3a3a3a] rounded text-blue-600 focus:ring-blue-500"
+          className="mr-2 bg-[#2a2a2a] border-[#3a3a3a] rounded text-green-700 focus:ring-green-600"
         />
         <span>{label}</span>
       </div>
@@ -105,7 +105,7 @@ function ModelsSidebar({
         <h2 className="text-white text-base font-medium">Filters</h2>
         {Object.values(selectedFilters).some(filters => filters.length > 0) && (
           <button 
-            className="flex items-center text-sm text-blue-400 hover:text-blue-300"
+            className="flex items-center text-sm text-green-500 hover:text-green-400"
             onClick={onClearFilters}
           >
             <XMarkIcon className="w-3.5 h-3.5 mr-1" />

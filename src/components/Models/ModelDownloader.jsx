@@ -20,7 +20,7 @@ function ModelDownloaderContent({ models = [] }) {
       <div className="p-4 border-b border-[#2a2a2a]">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="animate-pulse w-2 h-2 bg-blue-500 rounded-full"></div>
+            <div className="animate-pulse w-2 h-2 bg-green-600 rounded-full"></div>
             <h2 className="text-sm font-medium text-white">Download Queue</h2>
           </div>
           <span className="text-xs text-gray-400 bg-[#252525] px-2 py-1 rounded">
@@ -36,7 +36,7 @@ function ModelDownloaderContent({ models = [] }) {
             className="p-4 border-b border-[#2a2a2a] hover:bg-[#252525] transition-colors"
           >
             <div className="flex items-start space-x-3">
-              <Spinner className="h-4 w-4 text-blue-400 mt-1" />
+              <Spinner className="h-4 w-4 text-green-500 mt-1" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-sm font-medium text-white truncate">
@@ -50,7 +50,7 @@ function ModelDownloaderContent({ models = [] }) {
                 </div>
                 <div className="w-full bg-[#0c0c0c] rounded-full h-1 overflow-hidden">
                   <div
-                    className="bg-blue-600 h-1 transition-all duration-300"
+                    className="bg-green-700 h-1 transition-all duration-300"
                     style={{ width: `${model.downloadProgress}%` }}
                   />
                 </div>

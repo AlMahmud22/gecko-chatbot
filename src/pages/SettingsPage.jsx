@@ -24,7 +24,7 @@ function SettingsPage() {
       transition={{ duration: 0.3 }}
     >
       <div className="flex items-center mb-6">
-        <Cog6ToothIcon className="w-8 h-8 text-blue-400 mr-2" />
+        <Cog6ToothIcon className="w-8 h-8 text-green-500 mr-2" />
         <h1 className="text-2xl font-semibold text-white">Settings</h1>
       </div>
       

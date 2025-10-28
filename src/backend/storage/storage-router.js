@@ -1,4 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\storage\storage-router.js
+// Storage Router
 
 import { initializeStorage, shutdownStorage } from './storage.js';
 import * as ProfileStorage from './profile-storage.js';

@@ -3,57 +3,166 @@ import { ElectronApiContext } from '../../contexts/ElectronApiContext';
 import useStore from '../../store';
 import Button from '../Common/Button';
 
+// Preset configurations for Performance
+const PERFORMANCE_PRESETS = {
+  custom: {
+    name: 'Custom',
+    description: 'Your customized settings',
+  },
+  speed: {
+    name: 'Speed',
+    description: 'Fast response time',
+    settings: {
+      maxTokens: 512,
+      contextLength: 1024,
+      batchSize: 16,
+      threads: 8,
+    }
+  },
+  balanced: {
+    name: 'Balanced',
+    description: 'Good speed & quality',
+    settings: {
+      maxTokens: 1000,
+      contextLength: 2048,
+      batchSize: 32,
+      threads: 4,
+    }
+  },
+  quality: {
+    name: 'Quality',
+    description: 'Best output quality',
+    settings: {
+      maxTokens: 2048,
+      contextLength: 4096,
+      batchSize: 64,
+      threads: 2,
+    }
+  },
+  max: {
+    name: 'Max',
+    description: 'Maximum capacity',
+    settings: {
+      maxTokens: 4096,
+      contextLength: 8192,
+      batchSize: 64,
+      threads: 1,
+    }
+  }
+};
+
 function SettingsPerformance() {
-  const { isApiReady } = useContext(ElectronApiContext);
+  const electronApiContext = useContext(ElectronApiContext);
   const { performanceSettings, updatePerformanceSettings } = useStore();
-  const [threads, setThreads] = useState(performanceSettings.threads || 4);
-  const [topK, setTopK] = useState(performanceSettings.top_k || 40);
-  const [topP, setTopP] = useState(performanceSettings.top_p || 0.9);
-  const [temperature, setTemperature] = useState(performanceSettings.temperature || 0.7);
-  const [contextLength, setContextLength] = useState(performanceSettings.context_length || 2048);
-  const [batchSize, setBatchSize] = useState(performanceSettings.batch_size || 32);
-  const [mirostat, setMirostat] = useState(performanceSettings.mirostat || 0);
+  const isApiReady = electronApiContext?.isApiReady || false;
+  
+  const [selectedPreset, setSelectedPreset] = useState('balanced');
+  // Default values
+  const [maxTokens, setMaxTokens] = useState(performanceSettings?.maxTokens || 1000);
+  const [contextLength, setContextLength] = useState(performanceSettings?.contextLength || 2048);
+  const [batchSize, setBatchSize] = useState(performanceSettings?.batchSize || 32);
+  const [threads, setThreads] = useState(performanceSettings?.threads || 4);
+  
+  // Track original values to detect changes
+  const [originalSettings, setOriginalSettings] = useState({
+    maxTokens: 1000,
+    contextLength: 2048,
+    batchSize: 32,
+    threads: 4,
+    preset: 'balanced'
+  });
+  
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     if (!isApiReady) return;
 
     const loadSettings = async () => {
+      setIsLoading(true);
       try {
         ////// Use new storage API to get performance settings section
         const result = await window.electronAPI.storage.settings.getSection('performance');
         const settings = result?.settings || result || {};
-        setThreads(settings.threads || 4);
-        setTopK(settings.top_k || 40);
-        setTopP(settings.top_p || 0.9);
-        setTemperature(settings.temperature || 0.7);
-        setContextLength(settings.context_length || 2048);
-        setBatchSize(settings.batch_size || 32);
-        setMirostat(settings.mirostat || 0);
+        
+        const loadedMaxTokens = settings.maxTokens || 1000;
+        const loadedContextLength = settings.contextLength || settings.contextSize || 2048;
+        const loadedBatchSize = settings.batchSize || 32;
+        const loadedThreads = settings.threads || 4;
+        const loadedPreset = settings.preset || 'balanced';
+        
+        setMaxTokens(loadedMaxTokens);
+        setContextLength(loadedContextLength);
+        setBatchSize(loadedBatchSize);
+        setThreads(loadedThreads);
+        setSelectedPreset(loadedPreset);
+        
+        // Store original values for change detection
+        setOriginalSettings({
+          maxTokens: loadedMaxTokens,
+          contextLength: loadedContextLength,
+          batchSize: loadedBatchSize,
+          threads: loadedThreads,
+          preset: loadedPreset
+        });
       } catch (err) {
         console.error('Failed to load performance settings:', err);
         setError('Failed to load performance settings.');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadSettings();
   }, [isApiReady]);
 
+  // Check if settings have changed
+  const hasChanges = () => {
+    return (
+      maxTokens !== originalSettings.maxTokens ||
+      contextLength !== originalSettings.contextLength ||
+      batchSize !== originalSettings.batchSize ||
+      threads !== originalSettings.threads ||
+      selectedPreset !== originalSettings.preset
+    );
+  };
+
+  // Apply preset
+  const applyPreset = (presetKey) => {
+    if (presetKey === 'custom') {
+      setSelectedPreset('custom');
+      return;
+    }
+    
+    const preset = PERFORMANCE_PRESETS[presetKey];
+    if (preset && preset.settings) {
+      setMaxTokens(preset.settings.maxTokens);
+      setContextLength(preset.settings.contextLength);
+      setBatchSize(preset.settings.batchSize);
+      setThreads(preset.settings.threads);
+      setSelectedPreset(presetKey);
+    }
+  };
+
+  // Auto-switch to Custom when manually changing parameters
+  const handleParameterChange = (setter, value) => {
+    setter(value);
+    if (selectedPreset !== 'custom') {
+      setSelectedPreset('custom');
+    }
+  };
+
+  const showToastMessage = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
   const validateSettings = () => {
-    if (threads < 1 || threads > 16) {
-      setError('Threads must be between 1 and 16.');
-      return false;
-    }
-    if (topK < 10 || topK > 100) {
-      setError('Top K must be between 10 and 100.');
-      return false;
-    }
-    if (topP < 0.1 || topP > 1.0) {
-      setError('Top P must be between 0.1 and 1.0.');
-      return false;
-    }
-    if (temperature < 0.1 || temperature > 2.0) {
-      setError('Temperature must be between 0.1 and 2.0.');
+    if (maxTokens < 1 || maxTokens > 8192) {
+      setError('Max Tokens must be between 1 and 8192.');
       return false;
     }
     if (contextLength < 128 || contextLength > 32768) {
@@ -64,8 +173,8 @@ function SettingsPerformance() {
       setError('Batch Size must be between 1 and 512.');
       return false;
     }
-    if (mirostat < 0 || mirostat > 2) {
-      setError('Mirostat must be between 0 and 2.');
+    if (threads < 1 || threads > 128) {
+      setError('Threads must be between 1 and 128.');
       return false;
     }
     setError('');
@@ -73,147 +182,181 @@ function SettingsPerformance() {
   };
 
   const handleSave = async () => {
+    // Clear previous messages
+    setError('');
+    
     if (!isApiReady) {
       setError('Application not fully loaded. Please wait or restart.');
       return;
     }
+    
+    if (!hasChanges()) {
+      showToastMessage('No changes to save');
+      return;
+    }
+    
     if (!validateSettings()) return;
 
-    const newSettings = { 
-      threads, 
-      top_k: topK, 
-      top_p: topP, 
-      temperature,
-      context_length: contextLength,
-      batch_size: batchSize,
-      mirostat
+    setIsLoading(true);
+    const newSettings = {
+      maxTokens,
+      contextLength,
+      batchSize,
+      threads,
+      preset: selectedPreset
     };
+    
     try {
       ////// Update local store
       updatePerformanceSettings(newSettings);
       ////// Use new storage API to update performance settings section
       await window.electronAPI.storage.settings.updateSection('performance', newSettings);
-      setError('');
+      
+      // Update original settings after successful save
+      setOriginalSettings({
+        maxTokens,
+        contextLength,
+        batchSize,
+        threads,
+        preset: selectedPreset
+      });
+      
+      showToastMessage('Performance Settings Saved ✅');
     } catch (err) {
       console.error('Failed to save performance settings:', err);
       setError('Failed to save performance settings.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="p-8">
-      <section>
-        <h2 className="text-lg font-semibold text-white mb-1">Performance Settings</h2>
-        <p className="text-sm text-gray-400 mb-4">Optimize resource usage and model performance</p>
-        {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
-        <div className="space-y-4 p-4 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a]">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-400">Threads</label>
-              <span className="text-xs text-gray-500">{threads}</span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max="16"
-              value={threads}
-              onChange={(e) => setThreads(Number(e.target.value))}
-              className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
+    <div className="settings-performance space-y-8 relative">
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in">
+          <div className="px-4 py-3 bg-green-700 text-white text-sm rounded-lg shadow-lg flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            {toastMessage}
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-400">Top K</label>
-              <span className="text-xs text-gray-500">{topK}</span>
-            </div>
-            <input
-              type="range"
-              min="10"
-              max="100"
-              value={topK}
-              onChange={(e) => setTopK(Number(e.target.value))}
-              className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
+        </div>
+      )}
+      
+      {error && (
+        <div className="p-4 bg-red-900 text-red-200 text-sm rounded">
+          {error}
+        </div>
+      )}
+      
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold text-white mb-1">Performance Settings</h2>
+          <p className="text-sm text-gray-400">Optimize resource usage and model performance</p>
+        </div>
+
+        {/* Preset Selector */}
+        <div className="p-4 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a]">
+          <h3 className="text-sm font-medium text-white mb-3">Performance Presets</h3>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(PERFORMANCE_PRESETS).map(([key, preset]) => (
+              <button
+                key={key}
+                onClick={() => applyPreset(key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  selectedPreset === key
+                    ? 'bg-green-700 text-white ring-2 ring-green-500 ring-offset-2 ring-offset-[#1a1a1a] shadow-lg'
+                    : 'bg-[#2a2a2a] text-gray-300 hover:bg-[#3a3a3a] hover:text-white'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-0.5">
+                  <span>{preset.name}</span>
+                  <span className="text-xs opacity-75">{preset.description}</span>
+                </div>
+              </button>
+            ))}
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-400">Top P</label>
-              <span className="text-xs text-gray-500">{typeof topP === 'number' ? topP.toFixed(1) : '0.9'}</span>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-4 p-4 rounded-lg border border-[#2a2a2a] bg-[#1a1a1a]">
+            <h3 className="text-sm font-medium text-white">Model Performance</h3>
+            <div className="grid gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-400">Max Tokens</label>
+                  <span className="text-xs text-gray-500">{maxTokens}</span>
+                </div>
+                <input
+                  type="range"
+                  min="128"
+                  max="4096"
+                  step="128"
+                  value={maxTokens}
+                  onChange={(e) => handleParameterChange(setMaxTokens, Number(e.target.value))}
+                  className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
+                />
+                <p className="text-xs text-gray-500">Defines token output cap per generation</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-400">Context Length</label>
+                  <span className="text-xs text-gray-500">{contextLength}</span>
+                </div>
+                <input
+                  type="range"
+                  min="512"
+                  max="8192"
+                  step="512"
+                  value={contextLength}
+                  onChange={(e) => handleParameterChange(setContextLength, Number(e.target.value))}
+                  className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
+                />
+                <p className="text-xs text-gray-500">Model memory window; larger = more VRAM use</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-400">Batch Size</label>
+                  <span className="text-xs text-gray-500">{batchSize}</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="64"
+                  step="1"
+                  value={batchSize}
+                  onChange={(e) => handleParameterChange(setBatchSize, Number(e.target.value))}
+                  className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
+                />
+                <p className="text-xs text-gray-500">Bigger batches = faster but VRAM-intensive</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-400">Threads</label>
+                  <span className="text-xs text-gray-500">{threads}</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="16"
+                  step="1"
+                  value={threads}
+                  onChange={(e) => handleParameterChange(setThreads, Number(e.target.value))}
+                  className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
+                />
+                <p className="text-xs text-gray-500">Parallel CPU threads; match with your core count</p>
+              </div>
             </div>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.1"
-              value={topP || 0.1}
-              onChange={(e) => setTopP(Number(e.target.value))}
-              className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-400">Temperature</label>
-              <span className="text-xs text-gray-500">{typeof temperature === 'number' ? temperature.toFixed(1) : '0.7'}</span>
-            </div>
-            <input
-              type="range"
-              min="0.1"
-              max="2.0"
-              step="0.1"
-              value={temperature || 0.1}
-              onChange={(e) => setTemperature(Number(e.target.value))}
-              className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-400">Context Length</label>
-              <span className="text-xs text-gray-500">{contextLength}</span>
-            </div>
-            <input
-              type="range"
-              min="128"
-              max="32768"
-              step="256"
-              value={contextLength}
-              onChange={(e) => setContextLength(Number(e.target.value))}
-              className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-400">Batch Size</label>
-              <span className="text-xs text-gray-500">{batchSize}</span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max="512"
-              step="1"
-              value={batchSize}
-              onChange={(e) => setBatchSize(Number(e.target.value))}
-              className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-400">Mirostat</label>
-              <span className="text-xs text-gray-500">{typeof mirostat === 'number' ? mirostat.toFixed(1) : '0.0'}</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={mirostat}
-              onChange={(e) => setMirostat(Number(e.target.value))}
-              className="w-full bg-[#2a2a2a] h-1.5 rounded-lg appearance-none cursor-pointer"
-            />
           </div>
         </div>
         <div className="flex justify-end pt-4">
-          <Button variant="primary" onClick={handleSave}>
-            Save
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={isLoading || !hasChanges()}
+          >
+            {isLoading ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </section>

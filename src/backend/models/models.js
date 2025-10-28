@@ -1,4 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\models\models.js
+// Models Core Module
 
 // Re-export all model functions from router
 export {

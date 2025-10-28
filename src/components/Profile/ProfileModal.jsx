@@ -95,7 +95,7 @@ function ProfileModal({ mode, profile, onSave, onClose }) {
               className={`w-full px-3 py-2 bg-[#0c0c0c] border rounded-lg text-white focus:outline-none focus:ring-2 transition-colors ${
                 errors.name 
                   ? 'border-red-500 focus:ring-red-500/20' 
-                  : 'border-[#2a2a2a] focus:ring-blue-500/20'
+                  : 'border-[#2a2a2a] focus:ring-green-600/20'
               }`}
               placeholder="Enter profile name"
               maxLength={50}
@@ -121,7 +121,7 @@ function ProfileModal({ mode, profile, onSave, onClose }) {
               className={`w-full px-3 py-2 bg-[#0c0c0c] border rounded-lg text-white focus:outline-none focus:ring-2 transition-colors resize-none ${
                 errors.description 
                   ? 'border-red-500 focus:ring-red-500/20' 
-                  : 'border-[#2a2a2a] focus:ring-blue-500/20'
+                  : 'border-[#2a2a2a] focus:ring-green-600/20'
               }`}
               placeholder="Add a description for this profile"
               rows={3}
@@ -143,7 +143,7 @@ function ProfileModal({ mode, profile, onSave, onClose }) {
               type="checkbox"
               checked={formData.isDefault}
               onChange={(e) => handleChange('isDefault', e.target.checked)}
-              className="w-4 h-4 bg-[#0c0c0c] border-[#2a2a2a] rounded focus:ring-2 focus:ring-blue-500/20"
+              className="w-4 h-4 bg-[#0c0c0c] border-[#2a2a2a] rounded focus:ring-2 focus:ring-green-600/20"
               disabled={saving}
             />
             <label htmlFor="profile-default" className="text-sm text-gray-300">
@@ -171,7 +171,7 @@ function ProfileModal({ mode, profile, onSave, onClose }) {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : mode === 'create' ? 'Create' : 'Save Changes'}
             </button>

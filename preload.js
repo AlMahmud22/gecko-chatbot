@@ -1,6 +1,19 @@
 // C:\Users\mahmu\Desktop\final\lama\equators-chatbot\preload.js
 
+// Electron Preload Script
 const { contextBridge, ipcRenderer } = require('electron');
+
+// Expose ipcRenderer for event listeners
+contextBridge.exposeInMainWorld('electron', {
+  ipcRenderer: {
+    on: (channel, func) => {
+      ipcRenderer.on(channel, (event, ...args) => func(event, ...args));
+    },
+    removeListener: (channel, func) => {
+      ipcRenderer.removeListener(channel, func);
+    },
+  },
+});
 
 // Safely expose protected APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {

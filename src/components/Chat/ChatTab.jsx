@@ -35,7 +35,7 @@ function ChatTab({ messages, onSend, onStop, isGenerating, model, availableModel
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#333333] rounded-md transition-colors"
               >
-                <span className="font-medium text-blue-400">
+                <span className="font-medium text-green-500">
                   {model || 'Select a model'}
                 </span>
                 <ChevronDownIcon 
@@ -50,7 +50,7 @@ function ChatTab({ messages, onSend, onStop, isGenerating, model, availableModel
                       key={m.id}
                       onClick={() => handleModelSelect(m)}
                       className={`w-full px-4 py-2.5 text-left hover:bg-[#333333] transition-colors border-b border-[#333333] last:border-b-0 ${
-                        model === (m.name || m.id) ? 'bg-[#333333] text-blue-400' : 'text-gray-300'
+                        model === (m.name || m.id) ? 'bg-[#333333] text-green-500' : 'text-gray-300'
                       }`}
                     >
                       <div className="font-medium">{m.name || m.id}</div>
@@ -76,7 +76,7 @@ function ChatTab({ messages, onSend, onStop, isGenerating, model, availableModel
         )}
       </div>
       <div className="flex-1 overflow-hidden">
-        <ChatWindow messages={messages} />
+        <ChatWindow messages={messages} isGenerating={isGenerating} />
       </div>
       <ChatInput onSend={onSend} onStop={onStop} isGenerating={isGenerating} />
     </div>

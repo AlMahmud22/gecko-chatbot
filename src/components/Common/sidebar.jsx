@@ -93,9 +93,8 @@ function Sidebar() {
       }
       //// Clear active chat since we're starting fresh
       setActiveChatId(null);
-      //// Just navigate to the chat page without creating a new chat
-      //// A new chat will be created when the user sends the first message
-      navigate('/chat');
+      //// Navigate to chat page with explicit "newChat" flag to clear any existing chat
+      navigate('/chat', { state: { newChat: true } });
     } catch (err) {
       console.error('Failed to navigate to chat:', err);
     }
@@ -195,7 +194,7 @@ function Sidebar() {
         <button
           id="new-chat-btn-top"
           onClick={handleNewChat}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#2a2a2a] transition-all duration-200 text-blue-400 hover:text-blue-300"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#2a2a2a] transition-all duration-200 text-green-500 hover:text-green-400"
         >
           <PlusIcon className="w-6 h-6 min-w-[24px]" />
           {expanded && <span className="text-sm font-medium">New Chat</span>}
@@ -265,7 +264,7 @@ function Sidebar() {
                         }}
                         onClick={(e) => e.stopPropagation()}
                         onFocus={(e) => e.target.select()}
-                        className="flex-1 bg-[#0c0c0c] text-white text-sm px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                        className="flex-1 bg-[#0c0c0c] text-white text-sm px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-green-600"
                         autoFocus
                       />
                       <button
@@ -311,7 +310,7 @@ function Sidebar() {
                           e.stopPropagation();
                           startEditingChat(chat);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-400 transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-green-500 transition-opacity"
                         title="Rename"
                       >
                         <PencilIcon className="w-4 h-4" />

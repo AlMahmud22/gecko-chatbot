@@ -111,7 +111,7 @@ function ModelDetails({ model, systemInfo, isActive, onDownload, onActivate, onD
               className="w-16 h-16 rounded-lg border-2 border-gray-700"
             />
           ) : (
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-xl border-2 border-gray-700">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-emerald-700 rounded-lg flex items-center justify-center text-white font-bold text-xl border-2 border-gray-700">
               {author[0]?.toUpperCase()}
             </div>
           )}
@@ -151,7 +151,7 @@ function ModelDetails({ model, systemInfo, isActive, onDownload, onActivate, onD
         <div className="flex gap-2 mt-4">
           {!model.isInstalled && onDownload && (
             <motion.button
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="flex items-center px-4 py-2 bg-green-700 text-white rounded-lg font-medium hover:bg-green-800 transition-colors"
               onClick={() => onDownload(model.id, `${modelName}.Q4_K_M.gguf`)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -202,7 +202,7 @@ function ModelDetails({ model, systemInfo, isActive, onDownload, onActivate, onD
               key={tab.id}
               className={`flex items-center px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  ? 'text-green-500 border-b-2 border-green-500'
                   : 'text-gray-400 hover:text-white'
               }`}
               onClick={() => setActiveTab(tab.id)}

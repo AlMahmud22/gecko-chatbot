@@ -65,7 +65,7 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
 
   return (
     <motion.div
-      className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5 flex flex-col space-y-4 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all relative group"
+      className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-5 flex flex-col space-y-4 cursor-pointer hover:border-green-600 hover:shadow-lg transition-all relative group"
       onClick={onClick}
       whileHover={{ y: -2 }}
       transition={{ duration: 0.2 }}
@@ -80,7 +80,7 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
               className="w-10 h-10 rounded-full mr-3 flex-shrink-0 border-2 border-gray-600"
             />
           ) : (
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mr-3 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-700 rounded-full mr-3 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
               {author[0]?.toUpperCase()}
             </div>
           )}
@@ -132,7 +132,7 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
       <div className="flex flex-wrap gap-2">
         {/* Parameters tag */}
         {parameters && (
-          <span className="px-2 py-1 bg-blue-500 bg-opacity-20 border border-blue-500 text-blue-300 text-xs rounded-full font-medium flex items-center">
+          <span className="px-2 py-1 bg-green-600 bg-opacity-20 border border-green-600 text-green-400 text-xs rounded-full font-medium flex items-center">
             <CpuChipIcon className="w-3 h-3 mr-1" />
             {parameters}
           </span>
@@ -154,7 +154,7 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
         
         {/* Library tag */}
         {model.library_name && (
-          <span className="px-2 py-1 bg-blue-500 bg-opacity-20 border border-blue-500 text-blue-300 text-xs rounded-full font-medium">
+          <span className="px-2 py-1 bg-green-600 bg-opacity-20 border border-green-600 text-green-400 text-xs rounded-full font-medium">
             {model.library_name}
           </span>
         )}
@@ -214,10 +214,10 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
       </div>
       
       {/* Action buttons footer */}
-      <div className="flex space-x-2 pt-4 border-t border-[#3a3a3a]">
+      <div className="flex gap-2 pt-4 border-t border-[#3a3a3a]">
         {(model.isActive || model.active) ? (
           <motion.button
-            className="flex-1 px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-all flex items-center justify-center font-medium"
+            className="flex-1 min-w-0 px-2 py-2 bg-orange-600 text-white text-xs sm:text-sm rounded-lg hover:bg-orange-700 transition-all flex items-center justify-center font-medium"
             onClick={(e) => {
               e.stopPropagation();
               onDeactivate && onDeactivate(model.id);
@@ -225,14 +225,14 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>Deactivate</span>
+            <span className="truncate">Deactivate</span>
           </motion.button>
         ) : (
           <motion.button
-            className="flex-1 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-all flex items-center justify-center font-medium"
+            className="flex-1 min-w-0 px-2 py-2 bg-green-600 text-white text-xs sm:text-sm rounded-lg hover:bg-green-700 transition-all flex items-center justify-center font-medium"
             onClick={(e) => {
               e.stopPropagation();
               onActivate && onActivate(model.id);
@@ -240,14 +240,14 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <PlayCircleIcon className="w-4 h-4 mr-2" />
-            <span>Activate</span>
+            <PlayCircleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+            <span className="truncate">Activate</span>
           </motion.button>
         )}
         
         {onDelete && (
           <motion.button
-            className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
+            className="flex-shrink-0 px-2 sm:px-3 py-2 bg-red-600 text-white text-xs sm:text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center min-w-0"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(model.id);
@@ -256,8 +256,9 @@ function ModelCard({ model, systemInfo, isActive, onActivate, onDeactivate, onDe
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <TrashIcon className="w-4 h-4 mr-2" />
-            <span>{model.isExternal ? 'Unlink' : 'Remove'}</span>
+            <TrashIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+            <span className="truncate hidden xs:inline">{model.isExternal ? 'Unlink' : 'Remove'}</span>
+            <span className="truncate xs:hidden">{model.isExternal ? 'Unlink' : 'Del'}</span>
           </motion.button>
         )}
       </div>

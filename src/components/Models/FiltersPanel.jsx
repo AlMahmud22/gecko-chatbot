@@ -243,7 +243,7 @@ function FiltersPanel({
               onApply();
               onClose();
             }}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex-1 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors"
           >
             Apply Filters
           </button>
@@ -259,12 +259,12 @@ function FilterSection({ title, isExpanded, onToggle, count, children }) {
     <div className="border-b border-[#2a2a2a] pb-4">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between text-white font-medium text-sm mb-3 hover:text-blue-400 transition-colors"
+        className="w-full flex items-center justify-between text-white font-medium text-sm mb-3 hover:text-green-500 transition-colors"
       >
         <span className="flex items-center">
           {title}
           {count > 0 && (
-            <span className="ml-2 bg-blue-600 text-white rounded-full px-2 py-0.5 text-xs">
+            <span className="ml-2 bg-green-700 text-white rounded-full px-2 py-0.5 text-xs">
               {count}
             </span>
           )}
@@ -287,7 +287,7 @@ function FilterCheckbox({ label, sublabel, count, checked, onChange }) {
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+        className="w-4 h-4 text-green-700 border-gray-300 rounded focus:ring-green-600 focus:ring-2"
       />
       <div className="ml-3 flex-1">
         <div className="flex items-center justify-between">

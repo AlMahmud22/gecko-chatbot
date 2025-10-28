@@ -38,7 +38,7 @@ function SearchSortBar({
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value)}
-            className="appearance-none bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg py-2 px-4 pr-8 text-gray-200 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            className="appearance-none bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg py-2 px-4 pr-8 text-gray-200 focus:border-green-600 focus:outline-none focus:ring-1 focus:ring-green-600 cursor-pointer"
             disabled={isLoading}
           >
             {sortOptions.map(option => (
@@ -61,7 +61,7 @@ function SearchSortBar({
             console.log('Filter button clicked');
             onToggleFilters();
           }}
-          className={`flex items-center justify-center bg-[#2a2a2a] border ${showFilters ? 'border-blue-500 text-blue-500' : 'border-[#3a3a3a] text-gray-300'} rounded-lg px-4 py-2 hover:border-blue-500 hover:text-blue-400 transition-colors`}
+          className={`flex items-center justify-center bg-[#2a2a2a] border ${showFilters ? 'border-green-600 text-green-600' : 'border-[#3a3a3a] text-gray-300'} rounded-lg px-4 py-2 hover:border-green-600 hover:text-green-500 transition-colors`}
           disabled={isLoading}
           type="button"
         >

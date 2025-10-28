@@ -1,7 +1,7 @@
 import { TrashIcon } from '@heroicons/react/24/outline';
 import PropTypes from 'prop-types';
 
-////// Simplified HistoryList component that receives history as props from parent
+// Simplified component - receives history as props from parent
 function HistoryList({ history, onSelect, onDelete }) {
   return (
     <div className="flex flex-col space-y-2">

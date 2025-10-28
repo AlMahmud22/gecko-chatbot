@@ -216,7 +216,7 @@ function SettingsSystem() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Spinner className="w-8 h-8 text-blue-500" />
+        <Spinner className="w-8 h-8 text-green-600" />
       </div>
     );
   }
@@ -301,8 +301,8 @@ function SettingsSystem() {
             <p className="mt-1 text-gray-400 text-sm break-all">{modelPath}</p>
           </div>
           {isDevelopment && (
-            <div className="bg-blue-900/30 p-3 rounded-md text-sm mt-4">
-              <p className="text-blue-300 font-medium mb-1">Development Mode</p>
+            <div className="bg-green-950/30 p-3 rounded-md text-sm mt-4">
+              <p className="text-green-400 font-medium mb-1">Development Mode</p>
               <p className="text-gray-400">
                 The application is running in development mode.
                 {systemInfo?.isMock ? ' Using mock system data.' : ' Using real system data.'}

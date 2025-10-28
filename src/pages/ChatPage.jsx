@@ -2,8 +2,6 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ChatTab from '../components/Chat/ChatTab';
-import Spinner from '../components/Common/Spinner';
-import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { ElectronApiContext } from '../contexts/ElectronApiContext';
 import './ChatPage.css';
 
@@ -23,6 +21,8 @@ function ChatPage() {
   const [currentChatId, setCurrentChatId] = useState(null);
   ////// Track current generation ID for stopping
   const [currentGenerationId, setCurrentGenerationId] = useState(null);
+  ////// Watchdog timer ref to prevent stuck loading state
+  const loadingWatchdogRef = React.useRef(null);
 
   // Handler for when user changes model from dropdown
   const handleModelChange = (model) => {
@@ -44,13 +44,48 @@ function ChatPage() {
       if (!electronApi || !window.electronAPI) return;
       
       const chatId = location.state?.chatId;
+      const isNewChatRequest = location.state?.newChat === true;
+      
+      // If user explicitly requested a new chat, clear everything
+      if (isNewChatRequest) {
+        console.log('New chat requested, clearing current chat');
+        setMessages([]);
+        setCurrentChatId(null);
+        return;
+      }
+      
+      // CRITICAL FIX: Don't reload chat if we already have the same chatId loaded
+      // This prevents losing messages when modelId changes but chatId stays the same
+      if (chatId && chatId === currentChatId && messages.length > 0) {
+        console.log('Chat already loaded, skipping reload to preserve messages');
+        return;
+      }
+      
       if (chatId) {
         try {
           const chatResult = await window.electronAPI.storage.chats.get(chatId);
           const chat = chatResult?.chat || chatResult;
           
           if (chat && chat.messages) {
-            setMessages(chat.messages);
+            // Validate messages array contains both user and assistant messages
+            const hasUser = chat.messages.some(m => m.role === 'user');
+            const hasAssistant = chat.messages.some(m => m.role === 'assistant');
+            
+            if (chat.messages.length > 0 && !hasAssistant && hasUser) {
+              console.warn('VALIDATION: Chat has user messages but no assistant responses - possible persistence issue');
+            }
+            
+            // Ensure all messages have required fields
+            const validatedMessages = chat.messages.map(msg => ({
+              ...msg,
+              id: msg.id || `msg-${Date.now()}-${Math.random()}`,
+              role: msg.role || 'user',
+              content: msg.content || '',
+              model: msg.model || 'unknown',
+              timestamp: msg.timestamp || new Date().toISOString()
+            }));
+            
+            setMessages(validatedMessages);
             setCurrentChatId(chatId);
             
             //// If the chat has a modelId and we're not already on that model's page, navigate to it
@@ -64,15 +99,16 @@ function ChatPage() {
         } catch (err) {
           console.error('Failed to load chat:', err);
         }
-      } else {
-        //// No chatId provided, start fresh chat
+      } else if (!currentChatId) {
+        //// No chatId provided and no chat currently loaded, start fresh chat
         setMessages([]);
         setCurrentChatId(null);
       }
+      // If chatId is null but we have currentChatId, keep the current chat (don't clear)
     };
     
     loadChat();
-  }, [electronApi, location.state?.chatId, modelId, navigate]);
+  }, [electronApi, location.state?.chatId, location.state?.newChat, modelId, navigate, currentChatId, messages.length]);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -105,16 +141,29 @@ function ChatPage() {
             setError('No active models available. Please activate a model in the Models page.');
             return;
           } else {
-            ////// Auto-select first active model
-            navigate(`/chat/${encodeURIComponent(activeModels[0].id)}`, { replace: true });
+            ////// Auto-select first active model - preserve state flags
+            const stateToPreserve = {};
+            if (currentChatId) {
+              stateToPreserve.chatId = currentChatId;
+            }
+            if (location.state?.newChat) {
+              stateToPreserve.newChat = true;
+            }
+            
+            navigate(`/chat/${encodeURIComponent(activeModels[0].id)}`, { 
+              replace: true,
+              state: Object.keys(stateToPreserve).length > 0 ? stateToPreserve : undefined
+            });
           }
         } else {
           ////// Check if selected model exists and is active
           const model = activeModels.find(m => m.id === decodeURIComponent(modelId));
           
           if (!model) {
-            setError(`Selected model '${modelId}' is not active. Please activate it in the Models page.`);
-            navigate('/models');
+            // Model was deactivated - keep chat visible but read-only
+            setError(`Selected model '${modelId}' is not active. Activate it in Models page to continue chatting.`);
+            // Don't navigate away - keep the chat visible
+            setSelectedModel(null);
           } else {
             setSelectedModel(model);
             setError(null); // Clear any previous errors
@@ -129,15 +178,58 @@ function ChatPage() {
     loadModels();
   }, [electronApi, modelId, navigate]);
 
+  ////// Listen for model activation/deactivation events
+  useEffect(() => {
+    const handleModelsChanged = async (event) => {
+      console.log('Models changed event received:', event.detail);
+      
+      // Reload models list without affecting current chat
+      if (!window.electronAPI) return;
+      
+      try {
+        const response = await window.electronAPI.getLocalModels();
+        if (response.success) {
+          const activeModels = response.models || [];
+          setAvailableModels(activeModels);
+          
+          // If currently selected model was deactivated, show a warning but don't clear chat
+          if (selectedModel && event.detail.action === 'deactivate' && event.detail.modelId === selectedModel.id) {
+            setError('⚠️ Current model was deactivated. You can continue viewing this chat, but cannot send new messages.');
+          }
+          
+          // If currently selected model was re-activated, clear any warnings
+          if (selectedModel && event.detail.action === 'activate' && event.detail.modelId === selectedModel.id) {
+            setError(null);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to reload models after change:', err);
+      }
+    };
+
+    window.addEventListener('modelsChanged', handleModelsChanged);
+    
+    return () => {
+      window.removeEventListener('modelsChanged', handleModelsChanged);
+    };
+  }, [selectedModel]);
+
   const handleStop = async () => {
     if (currentGenerationId) {
-      try {
-        await window.electronAPI.stopGeneration(currentGenerationId);
-        setLoading(false);
-        setCurrentGenerationId(null);
-      } catch (err) {
-        console.error('Failed to stop generation:', err);
+      // Immediately clear UI state - don't wait for backend
+      setLoading(false);
+      setCurrentGenerationId(null);
+      
+      // Clear watchdog timer immediately
+      if (loadingWatchdogRef.current) {
+        clearTimeout(loadingWatchdogRef.current);
+        loadingWatchdogRef.current = null;
       }
+      
+      // Fire stop request to backend (don't await - fire and forget)
+      window.electronAPI.stopGeneration(currentGenerationId).catch(err => {
+        console.error('Failed to stop generation:', err);
+      });
     }
   };
 
@@ -149,6 +241,12 @@ function ChatPage() {
     setInput('');
     setLoading(true);
     setError(null);
+    
+    // Start watchdog timer: auto-clear loading if stuck for >3 minutes (for slow systems)
+    loadingWatchdogRef.current = setTimeout(() => {
+      console.warn('WATCHDOG: Loading state stuck for 3 minutes, but keeping it active for slow systems');
+      // Don't set error or clear loading - just log it for debugging
+    }, 180000); // 3 minutes for slow systems
 
     try {
       ////// Generate unique ID for this generation
@@ -158,8 +256,12 @@ function ChatPage() {
       ////// Save user message to chat storage
       if (currentChatId) {
         try {
-          await window.electronAPI.storage.chats.appendMessage(currentChatId, userMessage);
-          console.log('User message saved successfully');
+          const saveResult = await window.electronAPI.storage.chats.appendMessage(currentChatId, userMessage);
+          console.log('User message saved successfully:', saveResult);
+          
+          if (!saveResult.success) {
+            console.error('User message save returned non-success:', saveResult);
+          }
         } catch (saveErr) {
           console.error('Failed to save user message:', saveErr);
           // Continue with inference even if save fails
@@ -196,18 +298,43 @@ function ChatPage() {
       }
 
       ////// Run inference with the model
+      ////// Load chat and performance settings before inference
+      let chatSettings = {};
+      let performanceSettings = {};
+      
+      try {
+        const chatResult = await window.electronAPI.storage.settings.getSection('chat');
+        const perfResult = await window.electronAPI.storage.settings.getSection('performance');
+        
+        if (chatResult.success) chatSettings = chatResult.settings;
+        if (perfResult.success) performanceSettings = perfResult.settings;
+      } catch (settingsErr) {
+        console.warn('Failed to load settings, using defaults:', settingsErr);
+      }
+      
+      ////// Merge settings into inference config
+      const inferenceConfig = {
+        ...chatSettings,
+        ...performanceSettings,
+        generationId,
+        conversationHistory: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
+      };
+      
       ////// Pass conversation history for proper context
       const response = await window.electronAPI.runInference({
         modelId: selectedModel.id || selectedModel,
         message,
-        config: { 
-          generationId,
-          conversationHistory: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }))
-        }
+        config: inferenceConfig
       });
+      
+      // Clear watchdog immediately on response (success or error)
+      if (loadingWatchdogRef.current) {
+        clearTimeout(loadingWatchdogRef.current);
+        loadingWatchdogRef.current = null;
+      }
       
       console.log('Inference completed. Response:', {
         success: response.success,
@@ -243,7 +370,8 @@ function ChatPage() {
       if (responseText && responseText.trim().length > 0 && !isErrorResponse) {
         const botMessage = { 
           role: 'assistant', 
-          content: responseText, 
+          content: responseText,
+          model: selectedModel?.name || selectedModel?.id || 'unknown', // Attach model metadata
           timestamp: new Date().toISOString() 
         };
         
@@ -257,8 +385,13 @@ function ChatPage() {
           
           while (saveAttempts < maxAttempts && !saved) {
             try {
-              await window.electronAPI.storage.chats.appendMessage(currentChatId, botMessage);
-              console.log('Assistant message saved successfully');
+              const saveResult = await window.electronAPI.storage.chats.appendMessage(currentChatId, botMessage);
+              console.log('Assistant message saved successfully:', saveResult);
+              
+              if (!saveResult.success) {
+                throw new Error(saveResult.error || 'Save returned non-success');
+              }
+              
               saved = true;
               
               //// Dispatch event to refresh chat history in sidebar
@@ -292,8 +425,13 @@ function ChatPage() {
       console.error('Inference failed:', err);
       setError(`Failed to get response: ${err.message}`);
     } finally {
+      // Always clear loading state and watchdog timer
       setLoading(false);
       setCurrentGenerationId(null);
+      if (loadingWatchdogRef.current) {
+        clearTimeout(loadingWatchdogRef.current);
+        loadingWatchdogRef.current = null;
+      }
     }
   };
 
@@ -310,7 +448,7 @@ function ChatPage() {
           <p className="text-gray-400 mb-6">Please select a model from the Models page to start chatting.</p>
           <button
             onClick={() => navigate('/models')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-colors"
           >
             Go to Models
           </button>
@@ -321,24 +459,19 @@ function ChatPage() {
 
   return (
     <motion.div
-      className="chat-page p-6"
+      className="chat-page h-full w-full"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
       {error && (
         <motion.div
-          className="error-message p-4 bg-red-900/50 text-red-200 rounded-lg mb-6"
+          className="error-message p-4 bg-red-900/50 text-red-200 rounded-lg mx-6 my-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           {error}
         </motion.div>
-      )}
-      {loading && (
-        <div className="flex justify-center">
-          <Spinner className="w-6 h-6 text-blue-500" />
-        </div>
       )}
       <ChatTab
         messages={messages}

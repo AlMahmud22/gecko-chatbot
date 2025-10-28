@@ -25,7 +25,7 @@ function App() {
       <div className="app flex h-screen bg-vscode-panel">
         <Sidebar />
         <motion.div
-          className="content flex-1 overflow-auto"
+          className="content flex-1 overflow-auto custom-scrollbar"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}

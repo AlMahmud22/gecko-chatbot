@@ -171,6 +171,9 @@ export default function ModelsPage() {
         ));
         setError(`  Model activated successfully`);
         setTimeout(() => setError(null), 3000);
+        
+        ////// Notify other components that models list has changed
+        window.dispatchEvent(new CustomEvent('modelsChanged', { detail: { action: 'activate', modelId } }));
       } else {
         setError(`  Failed to activate model: ${result.error}`);
       }
@@ -195,6 +198,9 @@ export default function ModelsPage() {
         ));
         setError(`  Model deactivated successfully`);
         setTimeout(() => setError(null), 3000);
+        
+        ////// Notify other components that models list has changed
+        window.dispatchEvent(new CustomEvent('modelsChanged', { detail: { action: 'deactivate', modelId } }));
       } else {
         setError(`  Failed to deactivate model: ${result.error}`);
       }
@@ -264,7 +270,7 @@ export default function ModelsPage() {
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search models..."
-            className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg py-2 px-4 text-gray-200 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg py-2 px-4 text-gray-200 focus:border-green-600 focus:outline-none focus:ring-1 focus:ring-green-600"
           />
         </div>
       </motion.div>
@@ -278,7 +284,7 @@ export default function ModelsPage() {
       >
         <div className="flex space-x-3">
           <motion.button
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-all shadow-md"
+            className="flex items-center px-4 py-2 bg-green-700 text-white rounded-lg font-medium text-sm hover:bg-green-800 transition-all shadow-md"
             onClick={handleAddLocalModel}
             whileHover={{ scale: 1.03, boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)" }}
             whileTap={{ scale: 0.97 }}
@@ -319,7 +325,7 @@ export default function ModelsPage() {
           </div>
           <motion.button
             onClick={handleChangeModelsDirectory}
-            className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+            className="px-3 py-1 bg-green-700 text-white text-xs rounded-lg hover:bg-green-800 transition-colors flex items-center"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -344,7 +350,7 @@ export default function ModelsPage() {
         >
           All Models
           <motion.span 
-            className="ml-2 bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs"
+            className="ml-2 bg-green-600 text-white rounded-full px-2 py-0.5 text-xs"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 500, damping: 15 }}
@@ -487,7 +493,7 @@ function TabButton({ isActive, onClick, children }) {
     <motion.button 
       className={`px-4 py-2 font-medium text-sm flex items-center ${
         isActive 
-          ? 'text-blue-400 border-b-2 border-blue-400' 
+          ? 'text-green-500 border-b-2 border-green-500' 
           : 'text-gray-400 hover:text-white'
       }`}
       onClick={onClick}
@@ -517,7 +523,7 @@ function EmptyState({ icon: Icon, title, description, actions = [] }) {
               key={index}
               className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
                 action.primary 
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md' 
+                  ? 'bg-green-700 text-white hover:bg-green-800 shadow-md' 
                   : 'bg-gray-700 text-white hover:bg-gray-600'
               }`}
               onClick={action.onClick}

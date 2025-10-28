@@ -1,6 +1,7 @@
 // C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\storage\settings-storage.js
 
 import os from 'os';
+// Settings Storage Module
 import {
   getStorageFilePath,
   readJSON,

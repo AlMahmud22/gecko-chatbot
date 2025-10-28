@@ -88,7 +88,7 @@ function EmptyInstalledState({ onAddLocalModel, isLocalModelLoading }) {
       
       <div className="flex flex-col sm:flex-row gap-4">
         <motion.button
-          className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all shadow-lg"
+          className="flex items-center px-6 py-3 bg-green-700 text-white rounded-lg font-medium hover:bg-green-800 transition-all shadow-lg"
           onClick={onAddLocalModel}
           whileHover={{ scale: 1.05, boxShadow: "0 8px 25px rgba(59, 130, 246, 0.3)" }}
           whileTap={{ scale: 0.98 }}
@@ -115,8 +115,8 @@ function EmptyInstalledState({ onAddLocalModel, isLocalModelLoading }) {
         </motion.button>
       </div>
       
-      <div className="mt-8 p-4 bg-blue-500 bg-opacity-10 border border-blue-500 border-opacity-30 rounded-lg max-w-lg">
-        <p className="text-blue-400 text-sm">
+      <div className="mt-8 p-4 bg-green-600 bg-opacity-10 border border-green-600 border-opacity-30 rounded-lg max-w-lg">
+        <p className="text-green-500 text-sm">
           💡 <strong>Pro tip:</strong> Installed models run locally on your machine, 
           giving you privacy and offline capabilities. GGUF format models work best for local inference.
         </p>

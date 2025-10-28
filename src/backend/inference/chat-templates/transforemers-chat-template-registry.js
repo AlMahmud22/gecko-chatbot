@@ -305,19 +305,8 @@ export class TransformersChatTemplateRegistry {
   }
 }
 
-////=============================================================================
-//// MANUAL TEMPLATE ADDITION SECTION
-//// Add new templates below this line
-//// Follow the existing pattern:
-////
-//// templateName: (messages) => {
-////   let formatted = '';
-////   for (const msg of messages) {
-////     if (msg.role === 'system') {
-////       formatted += `your system format here`;
-////     } else if (msg.role === 'user') {
-////       formatted += `your user format here`;
-////     } else if (msg.role === 'assistant') {
+// Manual Template Addition Section
+// Add new templates below following the existing pattern
 ////       formatted += `your assistant format here`;
 ////     }
 ////   }

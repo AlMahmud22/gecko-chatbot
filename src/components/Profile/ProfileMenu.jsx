@@ -293,7 +293,7 @@ function ProfileMenu({ expanded, onInteraction }) {
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => handleEditProfile(profile, e)}
-                      className="p-1 rounded hover:bg-[#3a3a3a] text-blue-400"
+                      className="p-1 rounded hover:bg-[#3a3a3a] text-green-500"
                       title="Edit"
                     >
                       <PencilIcon className="w-4 h-4" />
@@ -324,7 +324,7 @@ function ProfileMenu({ expanded, onInteraction }) {
           <div className="border-t border-[#2a2a2a] p-2 space-y-1">
             <button
               onClick={handleCreateProfile}
-              className="flex items-center gap-2 px-3 py-2 rounded hover:bg-[#2a2a2a] text-blue-400 text-sm w-full"
+              className="flex items-center gap-2 px-3 py-2 rounded hover:bg-[#2a2a2a] text-green-500 text-sm w-full"
             >
               <PlusIcon className="w-4 h-4" />
               <span>Create New Profile</span>

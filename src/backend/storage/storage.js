@@ -1,6 +1,7 @@
 // C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\storage\storage.js
 
 import fs from 'fs';
+// Storage Core Module
 import path from 'path';
 import { app } from 'electron';
 import crypto from 'crypto';

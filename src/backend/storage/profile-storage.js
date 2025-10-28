@@ -1,4 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\storage\profile-storage.js
+// Profile Storage Module
 
 import fs from 'fs';
 import {

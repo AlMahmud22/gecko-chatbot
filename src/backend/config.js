@@ -1,6 +1,7 @@
 import path from 'path';
 import os from 'os';
 import { app } from 'electron';
+import { getSettingsSection } from './storage/settings-storage.js';
 
 // Detect Python executable based on OS
 function getPythonPath() {
@@ -50,14 +51,64 @@ export function getAppConfig() {
   };
 }
 
-// Legacy function for backward compatibility
+// Legacy function for backward compatibility - now loads from settings storage
 export async function getInferenceConfig() {
-  const config = getAppConfig();
-  return {
-    pythonPath: config.pythonPath,
-    modelDir: config.paths.modelDir,
-    temperature: config.inference.temperature,
-    top_p: config.inference.top_p,
-    max_tokens: config.inference.max_tokens,
-  };
+  try {
+    // Load chat and performance settings from storage
+    const chatSettingsResult = await getSettingsSection('chat');
+    const performanceSettingsResult = await getSettingsSection('performance');
+    
+    const chatSettings = chatSettingsResult.success ? chatSettingsResult.settings : {};
+    const performanceSettings = performanceSettingsResult.success ? performanceSettingsResult.settings : {};
+    
+    // Merge settings with safe defaults
+    const config = getAppConfig();
+    
+    return {
+      pythonPath: config.pythonPath,
+      modelDir: config.paths.modelDir,
+      
+      // Chat settings
+      temperature: chatSettings.temperature ?? 0.7,
+      topP: chatSettings.topP ?? 0.9,
+      topK: chatSettings.topK ?? 40,
+      maxTokens: chatSettings.maxTokens ?? 1000,
+      repetitionPenalty: chatSettings.repetitionPenalty ?? 1.1,
+      presencePenalty: chatSettings.presencePenalty ?? 0.0,
+      frequencyPenalty: chatSettings.frequencyPenalty ?? 0.0,
+      mirostat: chatSettings.mirostat ?? 0,
+      systemPrompt: chatSettings.systemPrompt ?? '',
+      stopSequences: chatSettings.stopSequences ?? [],
+      streamingEnabled: chatSettings.streamingEnabled ?? true,
+      
+      // Performance settings
+      threads: performanceSettings.threads ?? Math.max(1, os.cpus().length - 1),
+      contextLength: performanceSettings.contextSize ?? 2048,
+      batchSize: performanceSettings.batchSize ?? 512,
+      gpuLayers: performanceSettings.gpuLayers ?? 0,
+    };
+  } catch (err) {
+    console.error('Failed to load inference config from settings:', err);
+    // Fallback to default config
+    const config = getAppConfig();
+    return {
+      pythonPath: config.pythonPath,
+      modelDir: config.paths.modelDir,
+      temperature: 0.7,
+      topP: 0.9,
+      topK: 40,
+      maxTokens: 1000,
+      repetitionPenalty: 1.1,
+      presencePenalty: 0.0,
+      frequencyPenalty: 0.0,
+      mirostat: 0,
+      systemPrompt: '',
+      stopSequences: [],
+      streamingEnabled: true,
+      threads: Math.max(1, os.cpus().length - 1),
+      contextLength: 2048,
+      batchSize: 512,
+      gpuLayers: 0,
+    };
+  }
 }

@@ -1,9 +1,10 @@
 //// src/backend/engines/transformers-js-engine.js
-//// Transformers.js Inference Engine - File-based Template System
+//// Transformers.js Inference Engine - Unified Template System
 //// Handles ONNX, SafeTensors, and PyTorch models
-//// Uses @xenova/transformers library with file-based template loading
+//// Uses centralized template registry with fallback chain
 
 import { BaseInferenceEngine } from './base-engine.js';
+import { getTemplateForModel, templateRegistry } from '../chat-templates/template-registry.js';
 import { transformersTemplateLoader } from '../chat-templates/transformers-template-loader.js';
 import path from 'path';
 
@@ -31,13 +32,14 @@ export class TransformersJsEngine extends BaseInferenceEngine {
       env.allowLocalModels = true;
       env.useBrowserCache = false;
       
-      //// Load file-based templates
+      //// Load centralized template registry
       if (!this.templatesLoaded) {
+        await templateRegistry.loadAll();
         await transformersTemplateLoader.loadTemplates();
         this.templatesLoaded = true;
       }
       
-      console.log('[transformers.js] Engine initialized with file-based templates');
+      console.log('[transformers.js] Engine initialized with centralized registry');
     } catch (err) {
       console.error('[transformers.js] Failed to initialize:', err);
       throw new Error('@xenova/transformers not installed. Run: npm install @xenova/transformers');
@@ -89,17 +91,33 @@ export class TransformersJsEngine extends BaseInferenceEngine {
         modelPath: modelPath,
       });
 
-      //// Detect and store template using file-based loader
-      const templateFamily = transformersTemplateLoader.detectModelFamily(modelId);
-      const template = transformersTemplateLoader.getTemplate(templateFamily);
+      //// Use centralized registry helper with fallback chain
+      const templateResult = await getTemplateForModel(modelId, 'transformers');
+      console.log(`[transformers.js] Template source: ${templateResult.source}`);
+      
+      let template;
+      let templateFamily;
+      
+      if (templateResult.source === 'registry') {
+        template = templateResult.template;
+        templateFamily = template.name;
+      } else if (templateResult.source === 'universal-system') {
+        templateFamily = templateResult.familyName;
+        template = templateResult.template;
+      } else {
+        // Fallback to chatml
+        template = templateResult.template;
+        templateFamily = 'chatml';
+      }
       
       this.modelConfigs.set(modelId, {
         family: templateFamily,
-        template: template
+        template: template,
+        source: templateResult.source
       });
 
       console.log(`[transformers.js] Model loaded: ${modelId} (task: ${task})`);
-      console.log(`[transformers.js] Template: ${template.name}`);
+      console.log(`[transformers.js] Template: ${templateFamily}`);
 
       return {
         id: modelId,
@@ -154,18 +172,27 @@ export class TransformersJsEngine extends BaseInferenceEngine {
       console.log(`[transformers.js] Stop tokens: ${stopTokens.join(', ')}`);
       console.log(`[transformers.js] Prompt preview:\n${formattedPrompt.substring(0, 500)}...`);
 
+      //// Combine template stop tokens with user-defined stop sequences
+      const finalStopTokens = [...stopTokens, ...(options.stopStrings || [])];
+
       let result;
 
       //// Different tasks have different APIs
       if (task === 'text-generation') {
-        result = await pipe(formattedPrompt, {
-          max_new_tokens: options.maxTokens || 100,
-          temperature: options.temperature || 0.7,
-          top_k: options.topK || 50,
-          top_p: options.topP || 0.9,
+        //// Build generation config with all parameters
+        const generationConfig = {
+          max_new_tokens: options.maxTokens ?? 100,
+          temperature: options.temperature ?? 0.7,
+          top_k: options.topK ?? 50,
+          top_p: options.topP ?? 0.9,
+          repetition_penalty: options.repetitionPenalty ?? 1.1,
           do_sample: true,
           //// Note: streaming not yet fully supported in transformers.js v2
-        });
+        };
+        
+        console.log(`[transformers.js] Generation parameters:`, generationConfig);
+        
+        result = await pipe(formattedPrompt, generationConfig);
 
         //// Extract generated text
         const generatedText = result[0]?.generated_text || result.generated_text || '';

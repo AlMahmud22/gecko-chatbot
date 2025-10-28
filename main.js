@@ -1,5 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\main.js
-
+// Electron Main Process
 import { app, BrowserWindow, ipcMain, nativeTheme, shell, dialog } from 'electron';
 import path from 'path';
 import os from 'os';
@@ -254,10 +253,49 @@ ipcMain.handle('clear-all-models', async () => {
   }
 });
 
-ipcMain.handle('run-inference', async (_, { modelId, message, config }) => {
+ipcMain.handle('run-inference', async (event, { modelId, message, config }) => {
   try {
-    const inferenceConfig = config || await getInferenceConfig();
-    return await runInference(modelId, message, inferenceConfig);
+    // Helper to send progress logs to frontend
+    const sendLog = (log) => {
+      event.sender.send('inference-log', log);
+    };
+    
+    // Intercept console.log during inference
+    const originalLog = console.log;
+    const logBuffer = [];
+    
+    console.log = (...args) => {
+      const logMessage = args.join(' ');
+      // Filter and send relevant logs to frontend
+      if (
+        logMessage.includes('Loading model:') ||
+        logMessage.includes('Model loaded:') ||
+        logMessage.includes('Detected model type:') ||
+        logMessage.includes('engine initialized') ||
+        logMessage.includes('Template') ||
+        logMessage.includes('Running inference') ||
+        logMessage.includes('TemplateRegistry') ||
+        logMessage.includes('Matched') ||
+        logMessage.includes('control-looking token') ||
+        logMessage.includes('special_eos_id')
+      ) {
+        sendLog(logMessage);
+      }
+      // Still call original console.log
+      originalLog(...args);
+    };
+    
+    // Merge incoming config with stored settings
+    // Incoming config from frontend takes priority over stored settings
+    const storedConfig = await getInferenceConfig();
+    const inferenceConfig = { ...storedConfig, ...config };
+    
+    const result = await runInference(modelId, message, inferenceConfig);
+    
+    // Restore original console.log
+    console.log = originalLog;
+    
+    return result;
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -333,7 +371,7 @@ ipcMain.handle('storage:export-profile', async (_, profileId, exportPath) => {
 });
 
 // Custom Import/Export with Dialog and Encryption
-const ENCRYPTION_KEY = 'equators-chatbot-profile-key-2025'; // You should use a more secure key management
+const ENCRYPTION_KEY = 'gecko-chatbot-profile-key-2025'; // You should use a more secure key management
 
 function encrypt(text) {
   const algorithm = 'aes-256-ctr';
@@ -728,9 +766,20 @@ ipcMain.on('navigate-to-chat', (event, modelId) => {
 
 // Window Management
 async function createWindow() {
+  // Platform-specific icon paths
+  let iconPath;
+  if (process.platform === 'win32') {
+    iconPath = path.join(app.getAppPath(), 'public', 'gecko.ico');
+  } else if (process.platform === 'darwin') {
+    iconPath = path.join(app.getAppPath(), 'public', 'gecko.icns');
+  } else {
+    iconPath = path.join(app.getAppPath(), 'public', 'gecko.png');
+  }
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(app.getAppPath(), 'preload.js'),
       contextIsolation: true,

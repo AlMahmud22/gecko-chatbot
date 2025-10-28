@@ -1,5 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\storage\chat-storage.js
-
+// Chat Storage Module
 import {
   getStorageFilePath,
   readJSON,
@@ -111,13 +110,15 @@ export async function appendMessage(chatId, message, options = {}) {
   try {
     const useWAL = options.useWAL || false; // Enable WAL for streaming
     
+    // Ensure complete message object with all required fields
     const newMessage = {
-      id: generateId(),
+      id: message.id || generateId(),
       role: message.role || 'user',
       content: message.content || '',
-      timestamp: getTimestamp(),
+      model: message.model || 'unknown', // Ensure model field exists
+      timestamp: message.timestamp || getTimestamp(),
       metadata: message.metadata || {},
-      ...message,
+      ...message, // Allow override but ensure defaults are set
     };
     
     if (useWAL) {
@@ -125,7 +126,7 @@ export async function appendMessage(chatId, message, options = {}) {
       messageWAL.buffer(chatId, newMessage);
       return successResponse({ message: newMessage, buffered: true });
     } else {
-      // Direct write for immediate persistence
+      // Direct write for immediate persistence - atomic operation
       const filePath = getStorageFilePath(CHATS_FILE);
       const data = readJSON(filePath, { chats: [] });
       
@@ -137,7 +138,8 @@ export async function appendMessage(chatId, message, options = {}) {
       chat.messages.push(newMessage);
       chat.updatedAt = getTimestamp();
       
-      await writeJSONSafe(filePath, data); // Use safe atomic write
+      // Atomic write with flush - wait for completion
+      await writeJSONSafe(filePath, data);
       
       return successResponse({ message: newMessage, chat });
     }
@@ -157,7 +159,7 @@ export async function flushMessages(chatId) {
 }
 
 // Update message content (for streaming updates)
-export async function updateMessage(chatId, messageId, content) {
+export async function updateMessage(chatId, messageId, contentOrUpdates) {
   try {
     const filePath = getStorageFilePath(CHATS_FILE);
     const data = readJSON(filePath, { chats: [] });
@@ -172,11 +174,18 @@ export async function updateMessage(chatId, messageId, content) {
       throw new Error('Message not found');
     }
     
-    message.content = content;
+    // Support both string content and object updates
+    if (typeof contentOrUpdates === 'string') {
+      message.content = contentOrUpdates;
+    } else {
+      Object.assign(message, contentOrUpdates);
+    }
+    
     message.updatedAt = getTimestamp();
     chat.updatedAt = getTimestamp();
     
-    await writeJSONSafe(filePath, data); // Use safe write
+    // Atomic write - ensure completion before returning
+    await writeJSONSafe(filePath, data);
     
     return successResponse({ message, chat });
   } catch (err) {

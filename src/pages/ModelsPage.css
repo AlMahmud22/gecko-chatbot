@@ -109,23 +109,24 @@
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Scrollbar styling for the models container */
+/* Scrollbar styling for the models container - matches global style */
 .overflow-y-auto::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: rgba(15, 15, 15, 0.3);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.5);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(75, 85, 99, 0.7);
+  background: rgba(255, 255, 255, 0.4);
 }
 
 /* Text clamping utilities */
@@ -150,9 +151,10 @@
   background-color: #2d3748;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - consistent with global style */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {

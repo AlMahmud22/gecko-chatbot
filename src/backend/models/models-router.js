@@ -1,4 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\models\models-router.js
+// Models Router
 
 import {
   getAvailableModels,

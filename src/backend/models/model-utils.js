@@ -1,4 +1,4 @@
-// C:\Users\mahmu\Desktop\final\lama\equators-chatbot\src\backend\models\model-utils.js
+// Model Utilities
 
 import fs from 'fs';
 import path from 'path';

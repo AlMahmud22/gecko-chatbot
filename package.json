@@ -1,6 +1,8 @@
 {
-  "name": "equators-chatbot",
-  "version": "0.1.0",
+  "name": "gecko-chatbot",
+  "version": "1.0.0",
+  "description": "Gecko Chatbot - Local AI Assistant",
+  "author": "Your Name",
   "private": true,
   "type": "module",
   "main": "main.js",
@@ -8,7 +10,46 @@
     "dev": "cross-env NODE_ENV=development concurrently \"vite\" \"electron .\"",
     "build": "vite build",
     "start": "electron .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.gecko.chatbot",
+    "productName": "Gecko Chatbot",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "preload.js",
+      "src/backend/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "public/gecko.ico"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "public/gecko.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "public/gecko.png",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -35,6 +76,7 @@
     "concurrently": "^9.1.0",
     "cross-env": "^10.1.0",
     "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "vite": "^6.0.1"

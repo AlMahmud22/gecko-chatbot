@@ -73,7 +73,7 @@ function DebouncedSearchInput({
         className={`w-full pl-10 pr-20 py-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-white 
           focus:outline-none transition-all duration-200 ${
             isFocused || value 
-              ? 'border-blue-500 ring-1 ring-blue-500 shadow-md' 
+              ? 'border-green-600 ring-1 ring-green-600 shadow-md' 
               : 'hover:border-gray-600'
           }`}
         value={value}
@@ -99,7 +99,7 @@ function DebouncedSearchInput({
       
       {/* Search button */}
       <button
-        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-400 transition-colors p-1 rounded disabled:opacity-50"
+        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-600 hover:text-green-500 transition-colors p-1 rounded disabled:opacity-50"
         onClick={handleSearchClick}
         disabled={isLoading}
         aria-label="Search"

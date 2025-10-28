@@ -1,0 +1,19 @@
+{
+  "name": "wizardcoder",
+  "description": "WizardCoder family chat template for GGUF models",
+  "engine": "llama-cpp",
+  "patterns": ["wizardcoder", "wizard-coder"],
+  "priority": 9,
+  "roles": {
+    "system": "Instruction",
+    "user": "Input",
+    "assistant": "Response"
+  },
+  "stopTokens": ["</s>", "USER:", "ASSISTANT:"],
+  "template": {
+    "systemMessage": "### Instruction:\n{{content}}\n\n",
+    "userMessage": "### Input:\n{{content}}\n\n",
+    "suffix": "### Response:\n",
+    "specialHandling": "alpaca_format"
+  }
+}

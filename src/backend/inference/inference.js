@@ -1,18 +1,18 @@
-//// src/backend/inference.js
-//// v102 Updated Inference Module using Multi-Engine Router
+// Inference Module - Multi-Engine Router
 
 import { InferenceRouter } from './inference-router.js'
 import { getModelsDir } from '../models/models.js'
+import { validateInferenceConfig } from './config-validator.js'
 import path from 'path'
 import fs from 'fs'
 
-//// Global router instance
+// Global router instance
 let router = null
 
-//// Active generation abort controllers
+// Active generation abort controllers
 const abortControllers = new Map()
 
-//// Get or create router instance
+// Get or create router instance
 function getRouter() {
   if (!router) {
     router = new InferenceRouter()
@@ -20,9 +20,7 @@ function getRouter() {
   return router
 }
 
-//// Load a model for inference
-//// modelId → Model filename (e.g., "llama-2-7b-chat.Q4_K_M.gguf")
-//// config → optional configuration
+// Load a model for inference
 export async function loadModel(modelId, config = {}) {
   try {
     const modelDir = getModelsDir()
@@ -49,16 +47,16 @@ export async function loadModel(modelId, config = {}) {
   }
 }
 
-//// Run inference on a model
-//// modelId → which model to use
-//// message → user prompt/text
-//// config → temperature, top_p, etc
-//// generationId → optional ID to track and cancel this generation
+// Run inference on a model
 export async function runInference(modelId, message, config = {}) {
   const generationId = config.generationId || `${modelId}-${Date.now()}`
   
   try {
     const router = getRouter()
+
+    //// Validate and normalize configuration
+    const validatedConfig = validateInferenceConfig(config)
+    console.log('[inference] Configuration validated')
 
     //// Create abort controller for this generation
     const abortController = new AbortController()
@@ -70,26 +68,92 @@ export async function runInference(modelId, message, config = {}) {
 
     if (!isLoaded) {
       console.log(`Model ${modelId} not loaded, loading now...`)
-      const loadResult = await loadModel(modelId, config)
+      const loadConfig = {
+        gpuLayers: validatedConfig.gpuLayers ?? 0,
+        contextSize: validatedConfig.contextLength ?? 2048,
+        batchSize: validatedConfig.batchSize ?? 512,
+        threads: validatedConfig.threads,
+      }
+      const loadResult = await loadModel(modelId, loadConfig)
       if (!loadResult.success) {
         throw new Error(`Failed to load model: ${loadResult.error}`)
       }
     }
 
-    //// Build inference options
+    //// Process conversation history - add system prompt if provided
+    let conversationHistory = validatedConfig.conversationHistory || []
+    
+    //// Prepend system prompt as first system message if configured
+    if (validatedConfig.systemPrompt && validatedConfig.systemPrompt.trim().length > 0) {
+      //// Check if there's already a system message at the start
+      const hasSystemMessage = conversationHistory.length > 0 && conversationHistory[0].role === 'system'
+      
+      if (!hasSystemMessage) {
+        //// Add system prompt at the beginning
+        conversationHistory = [
+          { role: 'system', content: validatedConfig.systemPrompt },
+          ...conversationHistory
+        ]
+        console.log('[inference] System prompt added to conversation')
+      } else {
+        //// Replace existing system message with configured one
+        conversationHistory[0] = { role: 'system', content: validatedConfig.systemPrompt }
+        console.log('[inference] System prompt replaced existing system message')
+      }
+    }
+
+    //// Build inference options with validated parameters
     const options = {
-      temperature: config.temperature || 0.7,
-      maxTokens: config.maxTokens || 1000,
-      topP: config.topP || 0.9,
-      topK: config.topK || 40,
-      stopStrings: config.stopStrings || undefined,
+      //// Sampling parameters
+      temperature: validatedConfig.temperature,
+      topP: validatedConfig.topP,
+      topK: validatedConfig.topK,
+      maxTokens: validatedConfig.maxTokens,
+      minTokens: validatedConfig.minTokens,
+      
+      //// Penalty parameters
+      repetitionPenalty: validatedConfig.repetitionPenalty,
+      repeatPenalty: validatedConfig.repetitionPenalty, // Alias for compatibility
+      presencePenalty: validatedConfig.presencePenalty,
+      frequencyPenalty: validatedConfig.frequencyPenalty,
+      
+      //// Mirostat sampling
+      mirostat: validatedConfig.mirostat,
+      mirostatTau: validatedConfig.mirostatTau,
+      mirostatEta: validatedConfig.mirostatEta,
+      
+      //// Stop sequences
+      stopStrings: validatedConfig.stopSequences,
+      
+      //// Performance parameters
+      threads: validatedConfig.threads,
+      contextSize: validatedConfig.contextLength,
+      batchSize: validatedConfig.batchSize,
+      
       //// Pass conversation history for context
-      conversationHistory: config.conversationHistory || [],
+      conversationHistory: conversationHistory,
+      
       //// Pass abort signal
       abortSignal: abortController.signal,
+      
       //// Streaming callback (if supported)
-      onToken: config.onToken,
+      onToken: validatedConfig.onToken,
     }
+
+    console.log('[inference] Running with config:', {
+      modelId,
+      temperature: options.temperature,
+      topP: options.topP,
+      topK: options.topK,
+      maxTokens: options.maxTokens,
+      repetitionPenalty: options.repetitionPenalty,
+      mirostat: options.mirostat,
+      threads: options.threads,
+      contextSize: options.contextSize,
+      hasSystemPrompt: !!validatedConfig.systemPrompt,
+      stopSequences: options.stopStrings.length,
+      historyLength: conversationHistory.length,
+    })
 
     const response = await router.runInference(modelId, message, options)
 

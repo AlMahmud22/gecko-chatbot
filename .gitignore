@@ -1,13 +1,12 @@
 # System files
 .DS_Store
 .env
-extract_files.txt
-extract-all.ps1
-
+dist/
 # Node + NPM
 node_modules/
 npm-debug.log
 package-lock.json
+yarn.lock
 
 # Model binaries
 *.gguf
@@ -21,3 +20,27 @@ package-lock.json
 
 # Build output (ignored in Git, rebuildable)
 dist/
+dist-electron/
+
+# Electron builder output
+release/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/

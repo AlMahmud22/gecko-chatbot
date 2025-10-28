@@ -11,7 +11,7 @@ function ConfirmDialog({
 }) {
   const confirmButtonClass = confirmVariant === 'danger'
     ? 'bg-red-600 hover:bg-red-700'
-    : 'bg-blue-600 hover:bg-blue-700';
+    : 'bg-green-700 hover:bg-green-800';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
