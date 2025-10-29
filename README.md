@@ -1,4 +1,4 @@
-# Gecko Chatbot# Gecko Chatbot🦎 Gecko Chatbot
+# 🦎 Gecko Chatbot
 
 
 
