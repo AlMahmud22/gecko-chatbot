@@ -6,8 +6,6 @@ Gecko Chatbot is a local AI chatbot built with Electron, React, and llama.cpp.
 
 It runs completely offline — no servers, no tracking, just a clean desktop app that lets you chat with your own models.
 
-Gecko Chatbot is a local AI chatbot built with Electron, React, and llama.cpp.Gecko Chatbot is a local AI chatbot built with Electron, React, and llama.cpp.
-
 ## What It Does
 
 It runs completely offline — no servers, no tracking, just a clean desktop app that lets you chat with your own models.It runs completely offline — no servers, no tracking, just a clean desktop app that lets you chat with your own models.
